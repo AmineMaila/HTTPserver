@@ -4,6 +4,7 @@
 #include "../IEventHandler.hpp"
 #include "CGI/CGIHandler.hpp"
 #include "Response/Response.hpp"
+#include "Request/Request.hpp"
 #include "iostream"
 
 class ClientHandler : public EventHandler
@@ -17,6 +18,8 @@ public:
 	ServerConfig&	matchingServer(std::string& host);
 	void			decodeUri(struct ResponseInput& input, std::string& URL);
 	void			initResponse();
+	const int		getSocket( void ) const;
+	void			setResponseBuffer(std::string buffer);
 
 
 	void	reset();
@@ -25,7 +28,7 @@ public:
 
 private:
 	int							socket;
-	//Request						request;
+	Request						request;
 	Response					response;
 	CGIHandler					*cgi;
 	std::vector<ServerConfig>	vServers;

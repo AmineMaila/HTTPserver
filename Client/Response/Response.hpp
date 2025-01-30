@@ -34,7 +34,6 @@ enum	State
 	LISTDIR,
 	NEXTRANGE,
 	READRANGE,
-	READCGI,
 	SENDDATA,
 	ERROR,
 	FINISHED
@@ -58,7 +57,7 @@ struct	ResponseInput
 	int									status;
 	std::string							method;
 	std::string							uri;
-	std::string							absolutePath;
+	std::string							path;
 	bool								isDir = false;
 	std::map<std::string, std::string>	requestHeaders;
 	Directives							config;
@@ -98,15 +97,10 @@ public:
 	void		buildChunk();
 	void		getNextRange();
 	bool		sendData(int& socket);
-	
+
 	// autoindex
 	void		autoIndex();
 	void		directoryListing();
-
-	// CGI
-	void		readCGI( int& socket );
-	bool		execCGI();
-	char		**generateEnv();
 
 private:
 	// response needed data
@@ -138,7 +132,7 @@ private:
 	enum State	nextState;
 
 	// response buffer
-	std::string data;
+	std::string buffer;
 };
 
 #endif

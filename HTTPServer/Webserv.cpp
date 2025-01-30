@@ -1,10 +1,13 @@
 #include "Webserv.hpp"
 
 Webserv::~Webserv() {}
+
 Webserv::Webserv()
 {
 	epoll_fd = epoll_create1(0);
 }
+
+Webserv::Webserv(std::vector<ServerConfig>& servers) : servers(servers) {}
 
 void	Webserv::registerHandler(int fd, EventHandler *h, uint32_t events)
 {
@@ -16,7 +19,7 @@ void	Webserv::registerHandler(int fd, EventHandler *h, uint32_t events)
 	h->HTTPserver = this;
 }
 
-void	Webserv::updateHandler(int fd, uint32_t events)
+void	Webserv::updateHandler(const int fd, uint32_t events)
 {
 	struct epoll_event ev;
 
@@ -29,7 +32,12 @@ void	Webserv::removeHandler(int fd)
 {
 	std::map<int, EventHandler*>::iterator it = handlerMap.find(fd);
 	if (it != handlerMap.end())
+	{
+		EventHandler	*h = it->second;
 		handlerMap.erase(it);
+		delete h;
+	}
+	close(fd);
 	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 }
 
@@ -145,7 +153,15 @@ void	Webserv::run()
 		for (int i = 0; i < eventCount; i++)
 		{
 			EventHandler	*h = static_cast<EventHandler *>(events[i].data.ptr);
-			h->handleEvent(events->events);
+			h->handleEvent(events[i].events);
+		}
+		for (std::map<pid_t, std::time_t>::iterator it = CGITimer.begin(); it != CGITimer.end(); it++)
+		{
+			time_t now = time(0);
+			if ((now - it->second) >= TIMEOUT)
+			{
+				kill(it->first, SIGKILL);
+			}
 		}
 	}
 }
