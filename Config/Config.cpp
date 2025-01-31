@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/23 13:01:02 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/30 19:14:41 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/31 15:06:42 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,7 +20,7 @@ Config::Config() {
 Config::Config(const std::string& configFileName) {
 	this->configFileName = configFileName;
 	
-	logs = open("Logs/webserv.log", O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	logs = open("Logs/error.log", O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (logs == -1)
 		std::cerr << BOLD << "Webserv: can't create error.log!" << RESET << std::endl;
 

@@ -7,7 +7,7 @@ class CGIHandler : public EventHandler
 {
 public:
 	~CGIHandler();
-	CGIHandler(int& fd, std::string& path, char **args, char **env);
+	CGIHandler(std::string& path, char **args, char **env);
 
 	bool	setup();
 	void	handleEvent(uint32_t events);
@@ -20,7 +20,7 @@ public:
 
 
 private:
-	ClientHandler	*client;
+	// ClientHandler	*client;
 	int				fd; // file descriptor where cgi writes its output into
 	pid_t			pid;
 	std::string		path;

@@ -2,7 +2,6 @@
 # define WEBSERV_HPP
 
 #include "../IEventHandler.hpp"
-#include "../Server/ServerHandler.hpp"
 #include "../Config/Config.hpp"
 #include <algorithm>
 #include <netdb.h>

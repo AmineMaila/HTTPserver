@@ -2,13 +2,17 @@
 
 CGIHandler::~CGIHandler() {}
 
-CGIHandler::CGIHandler(int& fd, std::string& path, char **args, char **env) : clientSocket(fd)
+CGIHandler::CGIHandler(std::string& path, char **args, char **env)
 {
 	this->path = path;
 	this->args = args;
 	this->env = env;
 }
 
+int CGIHandler::getFd() const
+{
+	return (fd);
+}
 
 bool	CGIHandler::setup()
 {
@@ -63,25 +67,26 @@ bool	CGIHandler::setup()
 
 void	CGIHandler::handleEvent(uint32_t events)
 {
-	std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++CGI READ" << std::endl;
-	char	buffer[SEND_BUFFER_SIZE] = {0};
-	int bytesRead = read(fd, buffer, SEND_BUFFER_SIZE);
-	if (bytesRead > 0)
-	{
-		client->setResponseBuffer(std::string(buffer, bytesRead));
-		data = std::string(buffer, bytesRead);
-		state = SENDDATA;
-	}
-	else if (bytesRead == 0)
-	{
-		state = FINISHED;
-	}
-	else
-	{
-		std::cerr << "[WEBSERV]\t";
-		perror("read");
-		state = ERROR;
-	}
-	HTTPserver->updateHandler(client->getSocket(), EPOLLOUT | EPOLLHUP);
-	HTTPserver->updateHandler(fd, 0);
+	(void)events;
+	// std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++CGI READ" << std::endl;
+	// char	buffer[SEND_BUFFER_SIZE] = {0};
+	// int bytesRead = read(fd, buffer, SEND_BUFFER_SIZE);
+	// if (bytesRead > 0)
+	// {
+	// 	client->setResponseBuffer(std::string(buffer, bytesRead));
+	// 	data = std::string(buffer, bytesRead);
+	// 	state = SENDDATA;
+	// }
+	// else if (bytesRead == 0)
+	// {
+	// 	state = FINISHED;
+	// }
+	// else
+	// {
+	// 	std::cerr << "[WEBSERV]\t";
+	// 	perror("read");
+	// 	state = ERROR;
+	// }
+	// HTTPserver->updateHandler(client->getSocket(), EPOLLOUT | EPOLLHUP);
+	// HTTPserver->updateHandler(fd, 0);
 }

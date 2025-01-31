@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/21 10:33:50 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/30 18:47:41 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/31 13:30:10 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,7 +89,7 @@ int	Request::receiveRequest(int socket)
 				<< " disconnected..." << std::endl;
 		
 		return (-1);
-	} else if (bytesReceived == -1) {
+	} else {
 		std::cerr << "[ERROR]\tReceiving failed..." << std::endl;
 		std::cerr << "[ERROR]\t";
 		perror("recv");

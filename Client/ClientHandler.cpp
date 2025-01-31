@@ -1,13 +1,13 @@
 #include "ClientHandler.hpp"
+#include "CGI/CGIHandler.hpp"
+#include "../HTTPServer/Webserv.hpp"
 
 ClientHandler::~ClientHandler()
 {
-	if (cgi)
-		delete cgi;
 	delete this;
 }
 
-ClientHandler::ClientHandler() : cgi(NULL) {}
+ClientHandler::ClientHandler() {}
 
 ClientHandler::ClientHandler(int fd, std::vector<ServerConfig> vServers) : socket(fd), vServers(vServers) {}
 
@@ -17,12 +17,12 @@ void	ClientHandler::reset()
 	// request = Request();
 }
 
-void	ClientHandler::setResponseBuffer(std::string buffer)
-{
-	response.setBuffer(buffer);
-}
+// void	ClientHandler::setResponseBuffer(std::string buffer)
+// {
+// 	response.setBuffer(buffer);
+// }
 
-const int	ClientHandler::getSocket() const
+int	ClientHandler::getSocket() const
 {
 	return (socket);
 }
@@ -159,7 +159,7 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 				arg[1] = const_cast<char *>(scriptName.c_str());
 				arg[2] = NULL;
 
-				cgi = new CGIHandler(this->socket, input.path, arg, env.data());
+				CGIHandler	*cgi = new CGIHandler(input.path, arg, env.data());
 				cgi->setup();
 				HTTPserver->registerHandler(cgi->getFd(), cgi, EPOLLIN | EPOLLHUP);
 			}
@@ -217,7 +217,6 @@ void	ClientHandler::initResponse()
 	decodeUri(input, URL);
 	response.setInput(input);
 }
-
 
 void	ClientHandler::handleEvent(uint32_t events)
 {
