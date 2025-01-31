@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/05 17:46:13 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/30 19:11:41 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/31 16:37:35 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@
 # include <unistd.h>
 # include "../../Utils/Helpers.hpp"
 
-# define BUFFER_SIZE 16000
+# define REQUEST_BUFFER_SIZE 16000
 
 enum e_parsingState {
 	PARSING_INIT,		// 0

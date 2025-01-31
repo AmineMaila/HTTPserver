@@ -156,13 +156,16 @@ void	Webserv::run()
 			EventHandler	*h = static_cast<EventHandler *>(events[i].data.ptr);
 			h->handleEvent(events[i].events);
 		}
-		for (std::map<pid_t, std::time_t>::iterator it = CGITimer.begin(); it != CGITimer.end(); it++)
-		{
-			time_t now = time(0);
-			if ((now - it->second) >= TIMEOUT)
-			{
-				kill(it->first, SIGKILL);
-			}
-		}
+		// std::vector<std::pair<EventHandler *, std::time_t>>::iterator it;
+		// for (it = Timer.begin(); it != Timer.end(); it++)
+		// {
+		// 	time_t now = time(0);
+		// 	if ((now - it->second) >= TIMEOUT)
+		// 	{
+		// 		removeHandler(it->first.getFd());
+		// 		kill(it->first.getPid(), SIGKILL);
+		// 	}
+		// }
+
 	}
 }

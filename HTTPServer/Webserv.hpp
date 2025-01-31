@@ -37,10 +37,10 @@ private:
 	void    listenForConnections(int& listener);
 
 
-	int								epoll_fd;
-	std::vector<ServerConfig>		servers;
-	std::map<int, EventHandler*>	handlerMap;
-	std::map<pid_t, std::time_t>	CGITimer;
+	int													epoll_fd;
+	std::vector<ServerConfig>							servers;
+	std::map<int, EventHandler*>						handlerMap;
+	std::vector<std::pair<EventHandler*, std::time_t>>	Timer;
 	// std::vector<ServerConfig>		vServers; // virtual servers from config file
 };
 

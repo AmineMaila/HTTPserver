@@ -7,14 +7,12 @@ ClientHandler::~ClientHandler()
 	delete this;
 }
 
-ClientHandler::ClientHandler() {}
-
-ClientHandler::ClientHandler(int fd, std::vector<ServerConfig> vServers) : socket(fd), vServers(vServers) {}
+ClientHandler::ClientHandler(int fd, std::vector<ServerConfig> vServers) : socket(fd), vServers(vServers), cgifd(-1) {}
 
 void	ClientHandler::reset()
 {
 	response = Response();
-	// request = Request();
+	request = Request();
 }
 
 // void	ClientHandler::setResponseBuffer(std::string buffer)
@@ -159,8 +157,14 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 				arg[1] = const_cast<char *>(scriptName.c_str());
 				arg[2] = NULL;
 
-				CGIHandler	*cgi = new CGIHandler(input.path, arg, env.data());
-				cgi->setup();
+				CGIHandler	*cgi = new CGIHandler(socket, input.path, arg, env.data());
+
+				if((cgifd = cgi->setup()) == -1)
+				{
+					input.status = 500;
+					delete cgi;
+					return;
+				}
 				HTTPserver->registerHandler(cgi->getFd(), cgi, EPOLLIN | EPOLLHUP);
 			}
 		}
@@ -239,6 +243,8 @@ void	ClientHandler::handleEvent(uint32_t events)
 		int state = response.sendResponse(socket);
 		if(state == -1) // can be || (state == 1 && client.(connection header is "close"))
 		{
+			if (cgifd != -1)
+				HTTPserver->removeHandler(cgifd);
 			HTTPserver->removeHandler(socket);
 			std::cout << "CLIENT REMOVED" << std::endl;
 		}

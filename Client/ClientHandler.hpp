@@ -10,7 +10,6 @@ class ClientHandler : public EventHandler
 {
 public:
 	~ClientHandler();
-	ClientHandler();
 	ClientHandler(int fd, std::vector<ServerConfig> vServers);
 
 
@@ -30,6 +29,7 @@ private:
 	Request						request;
 	Response					response;
 	std::vector<ServerConfig>	vServers;
+	int							cgifd;
 	
 };
 
