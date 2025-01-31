@@ -35,6 +35,8 @@ void	Response::directoryListing()
 					"<hr>\n"
 					"</body>\n"
 					"</html>");
+		closedir(dirList);
+		dirList = NULL;
 		nextState = FINISHED;
 	}
 	buildChunk();

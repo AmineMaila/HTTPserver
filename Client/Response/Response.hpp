@@ -29,14 +29,12 @@ struct Range
 
 enum	State
 {
-	BUILDHEADER,
 	READBODY,
 	AUTOINDEX,
 	LISTDIR,
 	NEXTRANGE,
 	READRANGE,
 	SENDDATA,
-	ERROR,
 	FINISHED
 };
 
@@ -60,6 +58,7 @@ struct	ResponseInput
 	std::string							uri;
 	std::string							path;
 	bool								isDir = false;
+	bool								isCgi = false;
 	std::map<std::string, std::string>	requestHeaders;
 	Directives							config;
 	// struct CgiInput						cgi;
@@ -77,9 +76,7 @@ public:
 	void		setInput(struct ResponseInput& input);
 	int			sendResponse( int& socket );
 
-	void		generateErrorPage( void );
 	void		generateHeaders( void );
-	bool		getResource( void );
 
 	// range parsing
 	int			rangeContentLength( void );
@@ -92,6 +89,7 @@ public:
 	void		handleDELETE( void );
 
 	// sending body
+	void		openBodyFile();
 	void		readBody();
 	void		readRange();
 	void		buildRange( void );

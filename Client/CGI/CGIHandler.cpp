@@ -72,30 +72,46 @@ int	CGIHandler::setup()
 	return (fd);
 }
 
+void	CGIHandler::readCgi()
+{
+	// std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++CGI READ" << std::endl;
+	char	buf[CGI_BUFFER_SIZE] = {0};
+	int		bytesRead = read(clientSocket, buf, CGI_BUFFER_SIZE);
+	if (bytesRead > 0)
+	{
+		// client->setResponseBuffer(std::string(buffer, bytesRead));
+		buffer = std::string(buf, bytesRead);
+		state = FORWARD_TO_RESPONSE;
+	}
+	else if (bytesRead == 0)
+	{
+		state = CGI_FINISHED;
+	}
+	else
+	{
+		std::cerr << "[WEBSERV]\t";
+		perror("read");
+		state = CGI_ERROR;
+	}
+	HTTPserver->updateHandler(clientSocket, EPOLLOUT | EPOLLHUP);
+	HTTPserver->updateHandler(fd, 0);
+}
+
 void	CGIHandler::handleEvent(uint32_t events)
 {
 	if (events & EPOLLIN)
 	{
-		// std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++CGI READ" << std::endl;
-		char	buf[CGI_BUFFER_SIZE] = {0};
-		int		bytesRead = read(clientSocket, buf, CGI_BUFFER_SIZE);
-		if (bytesRead > 0)
+		switch (state)
 		{
-			// client->setResponseBuffer(std::string(buffer, bytesRead));
-			buffer = std::string(buf, bytesRead);
-			state = SEND_CGI_CHUNK;
+		case READ_CGI_CHUNK:
+			readCgi();
+			break;
+		case FORWARD_TO_RESPONSE:
+			break;
+		case CGI_FINISHED:
+			break;
+		case CGI_ERROR:
+			break;
 		}
-		else if (bytesRead == 0)
-		{
-			state = CGI_FINISHED;
-		}
-		else
-		{
-			std::cerr << "[WEBSERV]\t";
-			perror("read");
-			state = CGI_ERROR;
-		}
-		HTTPserver->updateHandler(clientSocket, EPOLLOUT | EPOLLHUP);
-		HTTPserver->updateHandler(fd, 0);
 	}
 }

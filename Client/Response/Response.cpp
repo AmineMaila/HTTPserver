@@ -1,4 +1,5 @@
 #include "Response.hpp"
+#include "Error.hpp"
 
 Response::~Response()
 {
@@ -9,10 +10,10 @@ Response::~Response()
 	}
 }
 
-Response::Response() : contentLength(0), chunked(false), currRange(0), state(BUILDHEADER), nextState(READBODY)
+Response::Response() : contentLength(0), chunked(false), currRange(0), state(READBODY), nextState(SENDDATA)
 {
 	dirList = NULL;
-    statusCodes.insert(std::make_pair(200, "OK"));
+	statusCodes.insert(std::make_pair(200, "OK"));
     statusCodes.insert(std::make_pair(201, "Created"));
     statusCodes.insert(std::make_pair(204, "No Content"));
     statusCodes.insert(std::make_pair(206, "Partial Content"));
@@ -21,19 +22,9 @@ Response::Response() : contentLength(0), chunked(false), currRange(0), state(BUI
     statusCodes.insert(std::make_pair(303, "See Other"));
     statusCodes.insert(std::make_pair(307, "Temporary Redirect"));
     statusCodes.insert(std::make_pair(308, "Permanent Redirect"));
-    statusCodes.insert(std::make_pair(400, "Bad Request"));
-    statusCodes.insert(std::make_pair(403, "Forbidden"));
-    statusCodes.insert(std::make_pair(404, "Not Found"));
-    statusCodes.insert(std::make_pair(405, "Method Not Allowed"));
-    statusCodes.insert(std::make_pair(413, "Payload Too Large"));
-    statusCodes.insert(std::make_pair(415, "Unsupported Media Type"));
-    statusCodes.insert(std::make_pair(416, "Range Not Satisfiable"));
-    statusCodes.insert(std::make_pair(500, "Internal Server Error"));
-    statusCodes.insert(std::make_pair(501, "Not Implemented"));
-    statusCodes.insert(std::make_pair(504, "Gateway Timeout"));
-    statusCodes.insert(std::make_pair(505, "HTTP Version Not Supported"));
 
 	// *****************MIME_TYPES****************** //
+
 
 	mimeTypes.insert(std::make_pair(".html", "text/html"));
 	mimeTypes.insert(std::make_pair(".htm", "text/html"));
@@ -100,30 +91,6 @@ void	Response::setInput(struct ResponseInput& input)
 	this->input = input;
 }
 
-void	Response::generateHeaders( void )
-{
-	headers.append("\r\nServer: webserv/1.0");
-	headers.append("\r\nDate: " + getDate());
-
-	if (input.status >= 400)
-		generateErrorPage();
-	else if (input.method == "GET") // check allowed methods
-		handleGET();
-	else if (input.method == "POST")
-		handlePOST();
-	else if (input.method == "DELETE")
-		handleDELETE();
-
-	if (input.requestHeaders.find("Connection") != input.requestHeaders.end())
-		headers.append("\r\nConnection: " + input.requestHeaders["Connection"]);
-
-	headers.append("\r\n\r\n");
-
-	headers = ("HTTP/1.1 " + _toString(input.status) + " " + statusCodes[input.status]) + headers; // status line
-	buffer.insert(0, headers);
-	state = SENDDATA;
-}
-
 bool	Response::sendData(int& socket)
 {
 	// std::cout <<  "RESOURCE : "<< input.path << std::endl;
@@ -132,9 +99,7 @@ bool	Response::sendData(int& socket)
 	// std::cout << "BYTESSENT: "  << bytesSent << std::endl;
 	if (bytesSent == -1)
 	{
-		std::cerr << "[WEBSERV]\tsend: " << strerror(errno) << std::endl;
-		state = ERROR;
-		return (false);
+		throw(FatalError(strerror(errno)));
 	}
 	std::cout << "--------RESPONSE_DATA_TO_CLIENT " << socket << "--------" << std::endl;
 	std::cout << "\tSENT DATA OF SIZE: " << buffer.size() << std::endl;
@@ -151,9 +116,6 @@ int	Response::sendResponse( int& socket )
 	printState(nextState, "NextState");
 	switch (state)
 	{
-		case BUILDHEADER:
-			generateHeaders();
-			break;
 		case READBODY:
 			readBody();
 			break;
@@ -173,8 +135,6 @@ int	Response::sendResponse( int& socket )
 			if(sendData(socket) == true)
 				state = nextState;
 			break;
-		case ERROR:
-			return (-1);
 		case FINISHED:
 			return (1);
 	}
@@ -188,9 +148,6 @@ void printState(enum State state, std::string name)
 {
 	switch (state)
 	{
-		case BUILDHEADER:
-			std::cout << name << "==========>BUILDING HEADER" << std::endl;
-			break;
 		case READBODY:
 			std::cout << name << "==========>READING BODY" << std::endl;
 			break;
@@ -208,9 +165,6 @@ void printState(enum State state, std::string name)
 			break;
 		case SENDDATA:
 			std::cout << name << "==========>SENDING DATA" << std::endl;
-			break;
-		case ERROR:
-			std::cout << name << "==========>ERROR" << std::endl;
 			break;
 		case FINISHED:
 			std::cout << name << "==========>FINISHED" << std::endl;

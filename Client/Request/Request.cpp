@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/21 10:33:50 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/31 13:30:10 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/31 20:58:06 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -73,10 +73,10 @@ t_requestline&				Request::getRequestLineSt() {
 
 int	Request::receiveRequest(int socket)
 {
-	char	buffer[BUFFER_SIZE];
+	char	buffer[REQUEST_BUFFER_SIZE];
 
-	memset(buffer, 0, BUFFER_SIZE);
-	int	bytesReceived = recv(socket, buffer, BUFFER_SIZE, 0);
+	memset(buffer, 0, REQUEST_BUFFER_SIZE);
+	int	bytesReceived = recv(socket, buffer, REQUEST_BUFFER_SIZE, 0);
 	if (bytesReceived > 0) {
 		std::cout << "----------REQUEST_OF_CLIENT " << socket << "----------" << std::endl;
 		std::cout << buffer << std::endl;

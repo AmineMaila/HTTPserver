@@ -7,12 +7,21 @@ ClientHandler::~ClientHandler()
 	delete this;
 }
 
-ClientHandler::ClientHandler(int fd, std::vector<ServerConfig> vServers) : socket(fd), vServers(vServers), cgifd(-1) {}
+ClientHandler::ClientHandler(int fd, std::vector<ServerConfig> vServers) : socket(fd), vServers(vServers), cgifd(-1), keepAlive(false) {}
 
 void	ClientHandler::reset()
 {
 	response = Response();
 	request = Request();
+	std::cout << "[WEBSERV]\tRESETING " << socket << ".." << std::endl;
+}
+
+void	ClientHandler::remove()
+{
+	if (cgifd != -1)
+		HTTPserver->removeHandler(cgifd);
+	HTTPserver->removeHandler(socket);
+	std::cout << "[WEBSERV]\tCLIENT " << socket << " REMOVED" << std::endl;
 }
 
 // void	ClientHandler::setResponseBuffer(std::string buffer)
@@ -24,6 +33,8 @@ int	ClientHandler::getSocket() const
 {
 	return (socket);
 }
+
+
 
 ServerConfig&	ClientHandler::matchingServer(std::string& host)
 {
@@ -58,6 +69,7 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 {
 	if (!rootJail(input.uri))
 	{
+		//throw(ErrorPage(403));
 		input.status = 403;
 		return ;
 	}
@@ -83,6 +95,7 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 		URL.erase(0, pos++);
 		if (stat(input.path.c_str(), &pathStat) == -1)
 		{
+			//throw(ErrorPage(404));
 			input.status = 404;
 			return ;
 		}
@@ -95,6 +108,7 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 	{
 		if (access(input.path.c_str(), X_OK) != 0)
 		{
+			//throw(ErrorPage(403));
 			input.status = 403;
 			return ;
 		}
@@ -115,7 +129,7 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 			if (it == input.config.index.end())
 			{
 				if (!input.config.autoindex)
-					input.status = 404;
+					input.status = 404;//throw(ErrorPage(404));
 				return;
 			}
 		}
@@ -126,6 +140,7 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 	{	
 		if (access(input.path.c_str(), R_OK) != 0)
 		{
+			//throw(ErrorPage(403));
 			input.status = 403;
 			return ;
 		}
@@ -161,15 +176,18 @@ void	ClientHandler::decodeUri(struct ResponseInput& input, std::string& URL)
 
 				if((cgifd = cgi->setup()) == -1)
 				{
+					//throw(ErrorPage(500));
 					input.status = 500;
 					delete cgi;
 					return;
 				}
+				input.isCgi = true;
 				HTTPserver->registerHandler(cgi->getFd(), cgi, EPOLLIN | EPOLLHUP);
 			}
 		}
 		else if (URL.size() > 0)
 		{
+			//throw(ErrorPage(404));
 			input.status = 404;
 			return;
 		}
@@ -229,30 +247,46 @@ void	ClientHandler::handleEvent(uint32_t events)
 		int state = request.receiveRequest(socket);
 		if (state == PARSING_FINISHED)
 		{
-			HTTPserver->updateHandler(socket, EPOLLOUT | EPOLLHUP);
+			// setup response process
 			initResponse();
+			response.generateHeaders();
+			response.openBodyFile();
+			HTTPserver->updateHandler(socket, EPOLLOUT | EPOLLHUP);
 		}
-		else if (state == -1)
+		else if (state == -1) // remove
 		{
-			HTTPserver->removeHandler(socket);
-		}
-
-	}
-	else if (events & EPOLLOUT)
-	{
-		int state = response.sendResponse(socket);
-		if(state == -1) // can be || (state == 1 && client.(connection header is "close"))
-		{
-			if (cgifd != -1)
-				HTTPserver->removeHandler(cgifd);
 			HTTPserver->removeHandler(socket);
 			std::cout << "CLIENT REMOVED" << std::endl;
 		}
-		else if (state == 1)
+	}
+	else if (events & EPOLLOUT)
+	{
+		try
 		{
-			std::cout << "CLIENT " << socket << " SERVED. RESETING.." << std::endl;
-			HTTPserver->updateHandler(socket, EPOLLIN | EPOLLHUP);
-			reset();
+			if (response.sendResponse(socket) == 1)
+			{
+				std::cout << "[WEBSERV]\tCLIENT " << socket << " SERVED." << std::endl;
+				if (keepAlive)
+				{
+					HTTPserver->updateHandler(socket, EPOLLIN | EPOLLHUP);
+					this->reset();
+				}
+				else
+					this->remove();
+			}
+		}
+		catch (ErrorPage& err)
+		{
+			// darori treseta l body dial response w states 
+			err.generateErrorPage();
+			// response.setBuffer(err.getBuffer);
+			// set PATH darori
+		}
+		catch (FatalError& err)
+		{
+			std::cerr << "[WEBSERV][ERROR]\t" << err.what() << std::endl;
+			this->remove();
 		}
 	}
 }
+

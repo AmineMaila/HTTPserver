@@ -7,9 +7,8 @@
 
 enum CGI_STATE
 {
-	CGI_BOOT,
 	READ_CGI_CHUNK,
-	SEND_CGI_CHUNK,
+	FORWARD_TO_RESPONSE,
 	CGI_ERROR,
 	CGI_FINISHED,
 };
@@ -22,12 +21,12 @@ public:
 
 	int		setup();
 	void	handleEvent(uint32_t events);
+	void	readCgi();
+
+
 
 	int		getFd() const;
 	pid_t	getPid() const;
-	void	setQueryString(const std::string& other);
-	void	setScriptName(const std::string& other);
-	void	setPathInfo(const std::string& other);
 
 
 

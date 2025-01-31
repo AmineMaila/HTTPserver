@@ -3,6 +3,7 @@
 
 # include "../IEventHandler.hpp"
 # include "Response/Response.hpp"
+# include "Response/Error.hpp"
 # include "Request/Request.hpp"
 # include "iostream"
 
@@ -16,20 +17,22 @@ public:
 	ServerConfig&	matchingServer(std::string& host);
 	void			decodeUri(struct ResponseInput& input, std::string& URL);
 	void			initResponse();
+	void			setupResponse();
 	int				getSocket( void ) const;
 	// void			setResponseBuffer(std::string buffer);
 
 
 	void	reset();
+	void	remove();
 	void 	handleEvent(uint32_t events);
-
 
 private:
 	int							socket;
 	Request						request;
 	Response					response;
 	std::vector<ServerConfig>	vServers;
-	int							cgifd;
+	int							cgifd; // for cleanup
+	bool						keepAlive;
 	
 };
 

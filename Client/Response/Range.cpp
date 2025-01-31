@@ -1,4 +1,5 @@
 #include "Response.hpp"
+#include "Error.hpp"
 
 bool	Response::parseRangeHeader( void ) // example => Range: bytes=0-499,1000-1499
 {
@@ -39,11 +40,7 @@ bool	Response::parseRangeHeader( void ) // example => Range: bytes=0-499,1000-14
 			return (false);
 
 		if (start > end || end >= contentLength)
-		{
-			input.status = 416;
-			generateErrorPage();
-			return (false);
-		}
+			throw(ErrorPage(416));
 	
 		Range unit;
 
@@ -93,7 +90,7 @@ void	Response::buildRange( void )
 		contentType = "multipart/byteranges; boundary=" + boundary;
 		contentLength = rangeContentLength();
 	}
-	nextState = NEXTRANGE;
+	state = NEXTRANGE;
 }
 
 void	Response::getNextRange()
@@ -131,8 +128,7 @@ void	Response::readRange()
 	int bytesRead = bodyFile.read(buf, readLength).gcount();
 	if (bytesRead == -1)
 	{
-		std::cerr << "[WEBSERV]\tread: " << strerror(errno) << std::endl; // errno after I/O forbidden
-		state = ERROR;
+		throw(FatalError(strerror(errno)));
 	}
 	else if (bytesRead > 0)
 	{

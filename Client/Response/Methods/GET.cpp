@@ -1,4 +1,5 @@
 #include "../Response.hpp"
+#include "../Error.hpp"
 
 void	Response::buildChunk()
 {
@@ -12,6 +13,10 @@ void	Response::readBody()
 {
 	char buf[SEND_BUFFER_SIZE] = {0};
 	int bytesRead = bodyFile.read(buf, SEND_BUFFER_SIZE).gcount();
+	if (bytesRead == -1)
+	{
+		throw (FatalError(strerror(errno)));
+	}
 	if (bytesRead > 0)
 	{
 		// std::cout << "BYTESREAD : "<< bytesRead << std::endl;
@@ -30,58 +35,30 @@ void	Response::readBody()
 	{
 		state = FINISHED;
 	}
-	else
-	{
-		std::cerr << "[WEBSERV]\tread: " << strerror(errno) << std::endl;
-		state = ERROR;
-	}
-}
-
-bool	Response::getResource( void )
-{
-	// cgi check here
-
-
-	bodyFile.open(input.path);
-	if (!bodyFile.is_open())
-	{
-		input.status = 500;
-		return (false);
-	}
-
-	contentType = getContentType(input.path, mimeTypes);
-	contentLength = fileLength(input.path);
-	return (true);
 }
 
 void	Response::handleGET( void )
 {
-	if (!getResource())
-	{
-		generateErrorPage();
-		return ;
-	}
-
 	if (input.config.autoindex && input.isDir)
 	{
 		dirList = opendir(input.path.c_str()); // CHECK LEAK
 		if (dirList == NULL)
 		{
-			std::cerr << "[WEBSERV]\t>";
+			std::cerr << "[WEBSERV][ERROR]\t>";
 			perror("opendir");
-			input.status = 500;
-			generateErrorPage();
-			return ;
+			throw(ErrorPage(500));
 		}
 		headers.append("\r\nTransfer-Encoding: chunked");
 		contentType = "text/html";
-		nextState = AUTOINDEX;
+		state = AUTOINDEX;
 	}
 	else
 	{
+		contentType = getContentType(input.path, mimeTypes);
+		contentLength = fileLength(input.path);
 		if (input.requestHeaders.find("Range") != input.requestHeaders.end())
 			buildRange();
-		if (contentType.find("video") != std::string::npos || contentType.find("video") != std::string::npos)
+		if (contentType.find("video") != std::string::npos || contentType.find("audio") != std::string::npos)
 		{
 			headers.append("\r\nTransfer-Encoding: chunked");
 			chunked = true;
