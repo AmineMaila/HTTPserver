@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/23 13:01:02 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/19 21:02:02 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/30 19:14:41 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -105,7 +105,7 @@ int&										Config::getLogs() {
 	return this->logs;
 }
 
-std::vector<vServerConfig>&					Config::getServers() {
+std::vector<ServerConfig>&					Config::getServers() {
 	return this->Servers;
 }
 

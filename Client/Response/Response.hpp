@@ -13,7 +13,8 @@
 # include <fstream>
 # include <map>
 # include <vector>
-# include "../../Utils/Helpers.hpp";
+# include "../../Utils/Helpers.hpp"
+# include "../../Config/Config.hpp"
 
 # define SEND_BUFFER_SIZE 4096
 # define MAX_CONCURRENT_PROCESSES 50

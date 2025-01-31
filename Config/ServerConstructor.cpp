@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/25 18:55:44 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/27 22:09:06 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/30 19:23:35 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 bool				Config::constructServers() {
 	for (size_t i = 0; i < Parser.size(); i++) {
-		vServerConfig	newServerConfig;
+		ServerConfig	newServerConfig;
 		
 		// Directives		newServerDirectives;
 		fillServerDirectives(Parser[i].serverDirectives, newServerConfig);
@@ -57,11 +57,11 @@ void				Config::setDefaultDirectives(std::map<std::string, std::string>& userDir
 	}
 }
 
-bool				Config::fillServerDirectives(std::map<std::string, std::string>& ServerParserDirectives, vServerConfig& newServerConfig) {
+bool				Config::fillServerDirectives(std::map<std::string, std::string>& ServerParserDirectives, ServerConfig& newServerConfig) {
 	setDefaultDirectives(ServerParserDirectives);
 	
 	newServerConfig.host = ServerParserDirectives["host"];
-	newServerConfig.port = std::atoi(ServerParserDirectives["port"].c_str());
+	newServerConfig.port = ServerParserDirectives["port"];
 	// newServerConfig.server_names = splitStringBySpace(ServerParserDirectives["server_name"]);
 	// newServerConfig.ServerDirectives.error_pages = parseErrorPages();
 	// newServerConfig.ServerDirectives.client_max_body_size = parseClientMaxBodySize();
@@ -155,7 +155,7 @@ bool				Config::fillLocationDirectives(std::map<std::string, std::string>& Serve
 
 
 
-// bool				Config::fillLocationConfigByParserDirectives(std::map<std::string, std::string>& serverDirectives, std::map<std::string, std::string>& locationDirectives, vServerConfig& Server) {
+// bool				Config::fillLocationConfigByParserDirectives(std::map<std::string, std::string>& serverDirectives, std::map<std::string, std::string>& locationDirectives, ServerConfig& Server) {
 // 	LocationConfig			newLocation;
 	
 // 	newLocation.location = locationDirectives["location"];

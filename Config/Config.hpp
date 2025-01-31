@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/23 13:01:00 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/27 22:08:43 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/30 19:22:20 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,13 +58,13 @@ typedef struct												Directives {
 	std::map<std::string, std::string>						cgi_ext; // std::map<std::string, std::string>
 }															Directives;
 
-typedef struct												vServerConfig {
+typedef struct												ServerConfig {
 	std::string												host;
-	int														port;
+	std::string												port;
 	std::vector<std::string>								server_names;
 	Directives												ServerDirectives;
 	std::map<std::string, Directives>						Locations;
-}															vServerConfig;
+}															ServerConfig;
 
 typedef struct												vServerConfigParser {
 	std::map<std::string, std::string>						serverDirectives;
@@ -83,7 +83,7 @@ class Config {
 
 		int																logs;
 
-		std::vector<vServerConfig>										Servers;
+		std::vector<ServerConfig>										Servers;
 		std::vector<vServerConfigParser>								Parser;
 		
 	public:
@@ -114,14 +114,14 @@ class Config {
 
 		bool						constructServers();
 		void						setDefaultDirectives(std::map<std::string, std::string>& userDirectives);
-		bool						fillServerDirectives(std::map<std::string, std::string>& ServerParserDirectives, vServerConfig& newServerConfig);
+		bool						fillServerDirectives(std::map<std::string, std::string>& ServerParserDirectives, ServerConfig& newServerConfig);
 		std::vector<std::string>	splitStringBySpace(std::string& string);
 		bool						fillLocationDirectives(std::map<std::string, std::string>& ServerParserDirectives, Directives& Location, Directives& ServerDirectives);
 
 		void						printServersConfigs();
 
 		int&								getLogs();
-		std::vector<vServerConfig>&			getServers();
+		std::vector<ServerConfig>&			getServers();
 		std::vector<vServerConfigParser>&	getParser();
 		std::ifstream&						getConfigFile();
 		std::string&						getConfigFileName();

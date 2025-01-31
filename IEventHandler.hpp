@@ -6,7 +6,8 @@
 # include <fcntl.h>
 # include <unistd.h>
 # include <iostream>
-# include "Webserv.hpp"
+
+class Webserv;
 
 class EventHandler
 {
