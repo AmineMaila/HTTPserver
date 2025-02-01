@@ -1,7 +1,15 @@
 #include "Response.hpp"
+#include "Error.hpp"
 
 void	Response::autoIndex()
 {
+	dirList = opendir(input.path.c_str()); // CHECK LEAK
+	if (dirList == NULL)
+	{
+		std::cerr << "[WEBSERV][ERROR]\t>";
+		perror("opendir");
+		throw(ErrorPage(500));
+	}
 	buffer.append("<html>\n"
 				"<head>\n"
 				"<title>Index of " + input.uri + "</title>\n"
@@ -10,8 +18,6 @@ void	Response::autoIndex()
 				"<h1>Index of " + input.uri + "</h1>\n"
 				"<hr>\n"
 				"<pre>\n");
-	nextState = LISTDIR;
-	directoryListing();
 }
 
 void	Response::directoryListing()
@@ -39,5 +45,6 @@ void	Response::directoryListing()
 		dirList = NULL;
 		nextState = FINISHED;
 	}
-	buildChunk();
+	buffer = buildChunk(buffer.c_str(), buffer.size());
+	state = SENDDATA;
 }

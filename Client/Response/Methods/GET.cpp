@@ -1,39 +1,49 @@
 #include "../Response.hpp"
 #include "../Error.hpp"
 
-void	Response::buildChunk()
+std::string	Response::buildChunk(const char *data, size_t size) // error
 {
-	buffer = toHex(buffer.size()) + "\r\n" + buffer + "\r\n";
+	std::string chunk;
+
+	chunk = toHex(size) + "\r\n" + std::string(data, size) + "\r\n";
 	if (nextState == FINISHED)
-		buffer.append("0\r\n\r\n");
-	state = SENDDATA;
+		chunk.append("0\r\n\r\n");
+	return (chunk);
 }
 
-void	Response::readBody()
+void	Response::readChunk()
 {
 	char buf[SEND_BUFFER_SIZE] = {0};
 	int bytesRead = bodyFile.read(buf, SEND_BUFFER_SIZE).gcount();
+	// std::cout << bytesRead << std::endl;
 	if (bytesRead == -1)
 	{
 		throw (FatalError(strerror(errno)));
 	}
 	if (bytesRead > 0)
 	{
-		// std::cout << "BYTESREAD : "<< bytesRead << std::endl;
-		// buffer[bytesRead] = '\0'; // be CAREFUL
-		buffer.append(std::string(buf, bytesRead));
-		// std::cout << "DATA SIZE AFTER READ: " << buffer.size() << std::endl;
+		if (bodyFile.peek() == EOF)
+			nextState = FINISHED;
+		buffer.append(buildChunk(buf, bytesRead));
 		state = SENDDATA;
-		if (chunked)
-		{
-			buildChunk();
-			if (bodyFile.peek() == EOF)
-				nextState = FINISHED;
-		}
 	}
-	else if (bytesRead == 0)
+}
+
+void	Response::readBody()
+{
+	char buf[SEND_BUFFER_SIZE] = {0};
+	int bytesRead = bodyFile.read(buf, SEND_BUFFER_SIZE).gcount();
+	// std::cout << bytesRead << std::endl;
+	if (bytesRead == -1)
 	{
-		state = FINISHED;
+		throw (FatalError(strerror(errno)));
+	}
+	if (bytesRead > 0)
+	{
+		buffer.append(std::string(buf, bytesRead));
+		state = SENDDATA;
+		if (bodyFile.peek() == EOF)
+			nextState = FINISHED;
 	}
 }
 
@@ -41,30 +51,29 @@ void	Response::handleGET( void )
 {
 	if (input.config.autoindex && input.isDir)
 	{
-		dirList = opendir(input.path.c_str()); // CHECK LEAK
-		if (dirList == NULL)
-		{
-			std::cerr << "[WEBSERV][ERROR]\t>";
-			perror("opendir");
-			throw(ErrorPage(500));
-		}
+		autoIndex();
 		headers.append("\r\nTransfer-Encoding: chunked");
 		contentType = "text/html";
-		state = AUTOINDEX;
+		state = LISTDIR;
 	}
 	else
 	{
 		contentType = getContentType(input.path, mimeTypes);
 		contentLength = fileLength(input.path);
 		if (input.requestHeaders.find("Range") != input.requestHeaders.end())
+		{
+			std::cout << "Hello" << std::endl;
 			buildRange();
-		if (contentType.find("video") != std::string::npos || contentType.find("audio") != std::string::npos)
+			
+		}
+		else if (contentType.find("video") != std::string::npos || contentType.find("audio") != std::string::npos)
 		{
 			headers.append("\r\nTransfer-Encoding: chunked");
-			chunked = true;
+			state = READCHUNK;
 		}
 		else
 			headers.append("\r\nContent-Length: " + _toString(contentLength));
+		openBodyFile(input.path);
 	}
 	headers.append("\r\nContent-Type: " + contentType);
 	headers.append("\r\nAccept-Ranges: bytes");

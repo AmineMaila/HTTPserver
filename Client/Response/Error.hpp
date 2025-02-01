@@ -21,7 +21,8 @@ class ErrorPage : public std::exception
 public:
 	ErrorPage(int code);
 
-	void generateErrorPage();
+	std::string	getBuffer( void ) const;
+	void		generateErrorPage();
 
 private:
 	std::string					path;

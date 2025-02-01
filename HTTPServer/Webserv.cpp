@@ -3,17 +3,32 @@
 
 Webserv::~Webserv() {}
 
-Webserv::Webserv()
+Webserv::Webserv(std::vector<ServerConfig>& servers) : servers(servers)
 {
 	epoll_fd = epoll_create1(0);
 }
 
-Webserv::Webserv(std::vector<ServerConfig>& servers) : servers(servers) {}
+void print_epoll_events(uint32_t events)
+{
+	printf("Events: ");
+
+	if (events & EPOLLIN)  std::cerr << "EPOLLIN ";
+	if (events & EPOLLOUT) std::cerr << "EPOLLOUT ";
+	if (events & EPOLLRDHUP) std::cerr << "EPOLLRDHUP ";
+	if (events & EPOLLPRI) std::cerr << "EPOLLPRI ";
+	if (events & EPOLLERR) std::cerr << "EPOLLERR ";
+	if (events & EPOLLHUP) std::cerr << "EPOLLHUP ";
+	if (events & EPOLLET) std::cerr << "EPOLLET ";
+	if (events & EPOLLONESHOT) std::cerr << "EPOLLONESHOT ";
+
+	std::cerr << std::endl;
+}
 
 void	Webserv::registerHandler(int fd, EventHandler *h, uint32_t events)
 {
 	struct epoll_event ev;
-	ev.events = events | EPOLLET;
+
+	ev.events = events;
 	ev.data.ptr = h;
 	epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
 	handlerMap[fd] = h;
@@ -24,13 +39,15 @@ void	Webserv::updateHandler(const int fd, uint32_t events)
 {
 	struct epoll_event ev;
 
-	ev.events = events | EPOLLET;
+	ev.events = events;
 	ev.data.ptr = handlerMap[fd];
 	epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 }
 
 void	Webserv::removeHandler(int fd)
 {
+	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+	close(fd);
 	std::map<int, EventHandler*>::iterator it = handlerMap.find(fd);
 	if (it != handlerMap.end())
 	{
@@ -38,14 +55,11 @@ void	Webserv::removeHandler(int fd)
 		handlerMap.erase(it);
 		delete h;
 	}
-	close(fd);
-	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 }
-
 
 int	Webserv::bindSocket(std::string& host, std::string& port)
 {
-	struct addrinfo	hints;
+	struct addrinfo		hints;
 	
 	// initialize addrinfo
 	memset(&hints, 0, sizeof(hints));
@@ -61,13 +75,13 @@ int	Webserv::bindSocket(std::string& host, std::string& port)
 	}
 
 	// create socket and assign (bind) that socket an address returned in res
-	int listener;
-	struct addrinfo	*p;
+	struct addrinfo		*it;
+	int					serverSocket;
 
-	for (p = res; p; p = p->ai_next)
+	for (it = res; it; it = it->ai_next)
 	{
-		listener = socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
-		if (listener == -1)
+		serverSocket = socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
+		if (serverSocket == -1)
 			continue;
 
 		// kernel has a wait period for ports to be reusable after a socket has been closed under normal behaviour
@@ -76,49 +90,51 @@ int	Webserv::bindSocket(std::string& host, std::string& port)
 		// that would be if the server crashed and restarted the previous address bound to the socket wouldn't be unavaible due to the kernel wait period 
 
 		int yes = 1;
-		if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1)
+		if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1)
 		{
 			std::cerr << "[WEBSERV]\t>";
 			perror("setsockopt");
-			close(listener);
+			close(serverSocket);
 			freeaddrinfo(res);
 			exit(errno);
 		}
 
-		if (bind(listener, p->ai_addr, p->ai_addrlen) == 0)
+		if (bind(serverSocket, it->ai_addr, it->ai_addrlen) == 0)
 			break;
-		close(listener);
+		close(serverSocket);
 	}
 	freeaddrinfo(res);
-	if (!p)
+	if (!it)
 	{
-		close(listener);
-		std::cerr << "[WEBSERV]\t> Could Not Bind Any Socket..." << std::endl;
+		close(serverSocket);
+		std::cerr << "[WEBSERV]\t> Failed to Bind Any Socket..." << std::endl;
 		exit(errno);
 	}
-	return (listener);
+	return (serverSocket);
 }
 
-void    Webserv::listenForConnections(int& listener)
+void    Webserv::listenForConnections(int& serverSocket)
 {
-	if(listen(listener, BACKLOG) == -1)
+	if (listen(serverSocket, BACKLOG) == -1)
 	{
 		std::cerr << "[WEBSERV]\t>";
 		perror("listen");
+		close(serverSocket);
 		exit(errno);
 	}
-	if (fcntl(listener, F_SETFL, O_NONBLOCK, FD_CLOEXEC) == -1) // sets the socket to nonblock mode so it doesn't "block" on I/O operations (accept(), recv() ..)
+	if (fcntl(serverSocket, F_SETFL, O_NONBLOCK, FD_CLOEXEC) == -1) // sets the socket to nonblock mode so it doesn't "block" on I/O operations (accept(), recv() ..)
 	{
-		std::cerr << "[WEBSERV]\t> fcntl: " << strerror(errno) << std::endl;
-		close(listener);
+		std::cerr << "[WEBSERV]\t>";
+		perror("fcntl");
+		close(serverSocket);
 		exit(errno);
 	}
 }
 
 void	Webserv::initServers()
 {
-	int serverSocket;
-	std::vector<ServerConfig>::iterator it;
+	int													serverSocket;
+	std::vector<ServerConfig>::iterator					it;
 	std::map<std::pair<std::string, std::string>, int>	boundServers;
 
 	for (it = servers.begin(); it != servers.end(); it++)
@@ -126,13 +142,14 @@ void	Webserv::initServers()
 		std::pair<std::string, std::string> bindAddress = std::make_pair(it->host, it->port);
 		std::map<std::pair<std::string, std::string>, int>::iterator deja = boundServers.find(bindAddress);
 
-		// if server already bound just add the virtual server config to the ServerHandler that was already bound
+		// if server already bound just add the virtual server config to the ServerHandler
 		if (deja != boundServers.end())
 		{
 			static_cast<ServerHandler *>(handlerMap[deja->second])->addVServer(*it);
 			continue ;
 		}
 
+		// resolves domain name bind serverSocket to sockaddr and returns a valid socket
 		serverSocket = bindSocket(it->host, it->port);
 		listenForConnections(serverSocket);
 		std::cout << "[WEBSERV]\t> Server listening on " << it->host << ":" << it->port << std::endl;
@@ -149,11 +166,12 @@ void	Webserv::run()
 	struct epoll_event events[MAX_EVENTS];
 	while (true)
 	{
-		int eventCount = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+		int eventCount = epoll_wait(epoll_fd, events, MAX_EVENTS, 0);
 
 		for (int i = 0; i < eventCount; i++)
 		{
 			EventHandler	*h = static_cast<EventHandler *>(events[i].data.ptr);
+			// print_epoll_events(events[i].events);
 			h->handleEvent(events[i].events);
 		}
 		// std::vector<std::pair<EventHandler *, std::time_t>>::iterator it;

@@ -1,0 +1,15 @@
+add timeouts
+2 requests can be sent at the same time
+localhost should work on the config file
+check comments
+test range 0-0 | 1-1
+
+transfer encoding overrides content length
+
+add timeouts
+2 requests can be sent at the same time
+localhost should work on the config file
+check comments
+test range 0-0 | 1-1
+trailing / at the end of the uri (file)
+rje3 stdin stdout kima kano mora child kill

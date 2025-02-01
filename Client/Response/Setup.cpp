@@ -1,20 +1,11 @@
 #include "Response.hpp"
 #include "Error.hpp"
 
-void	Response::openBodyFile()
+void	Response::openBodyFile(const std::string& path)
 {
-	if (input.path.empty() || input.isDir || input.method != "GET")
-	{
-		state = nextState;
-	}
-	else
-	{
-		bodyFile.open(input.path);
-		if (!bodyFile.is_open())
-			throw(FatalError("could not open requested resource"));
-		else
-			state = READBODY;
-	}
+	bodyFile.open(path);
+	if (!bodyFile.is_open())
+		throw(FatalError("could not open requested resource"));
 }
 
 void	Response::generateHeaders( void )
@@ -31,11 +22,12 @@ void	Response::generateHeaders( void )
 	else if (input.method == "DELETE")
 		handleDELETE();
 
-	if (input.requestHeaders.find("Connection") != input.requestHeaders.end())
-		headers.append("\r\nConnection: " + input.requestHeaders["Connection"]);
+	if (input.requestHeaders.find("connection") != input.requestHeaders.end())
+		headers.append("\r\nConnection: " + input.requestHeaders["connection"]);
 
 	headers.append("\r\n\r\n");
 
 	headers = ("HTTP/1.1 " + _toString(input.status) + " " + statusCodes[input.status]) + headers; // status line
 	buffer.insert(0, headers);
+	nextState = state;
 }

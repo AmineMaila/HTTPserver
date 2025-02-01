@@ -6,7 +6,7 @@
 #    By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/11/21 09:47:15 by nazouz            #+#    #+#              #
-#    Updated: 2025/01/30 19:09:58 by mmaila           ###   ########.fr        #
+#    Updated: 2025/01/31 23:01:51 by mmaila           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -17,9 +17,11 @@ CPP				= 		c++
 CPPFLAGS		= 		-Wall -Werror -Wextra -fsanitize=address
 
 INCLUDE			=		\
+						./Config/Config.hpp \
 						./IEventHandler.hpp \
 						./Client/Request/Request.hpp \
 						./Client/Response/Response.hpp \
+						./Client/Response/Error.hpp \
 						./Server/ServerHandler.hpp \
 						./Client/ClientHandler.hpp \
 						./HTTPServer/Webserv.hpp \
@@ -29,7 +31,6 @@ INCLUDE			=		\
 SRCS			= 		\
 						./Config/Config.cpp \
 						./Config/Parsing.cpp \
-						./Config/Blocks.cpp \
 						./Config/ServerConstructor.cpp \
 						./Config/Validators.cpp \
 						./HTTPServer/Webserv.cpp \
@@ -38,12 +39,13 @@ SRCS			= 		\
 						./Client/Request/Headers.cpp \
 						./Client/Request/Body.cpp \
 						./Client/Response/Response.cpp \
+						./Client/Response/Error.cpp \
+						./Client/Response/Setup.cpp \
+						./Client/Response/AutoIndex.cpp \
+						./Client/Response/Range.cpp \
 						./Client/Response/Methods/GET.cpp \
 						./Client/Response/Methods/POST.cpp \
 						./Client/Response/Methods/DELETE.cpp \
-						./Client/Response/Error.cpp \
-						./Client/Response/AutoIndex.cpp \
-						./Client/Response/Range.cpp \
 						./Client/CGI/CGIHandler.cpp \
 						./Client/ClientHandler.cpp \
 						./Server/ServerHandler.cpp \

@@ -6,28 +6,26 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/23 13:01:02 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/31 15:06:42 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/31 22:10:26 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Config.hpp"
 #include <sstream>
 
-Config::Config() {
-	
-}
+Config::Config() {}
 
 Config::Config(const std::string& configFileName) {
-	this->configFileName = configFileName;
-	
-	logs = open("Logs/error.log", O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	// what if the file is deleted?
+	logs = open("../Logs/webserv.log", O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (logs == -1)
 		std::cerr << BOLD << "Webserv: can't create error.log!" << RESET << std::endl;
 
-	// if (!openConfigFile())
-	// 	return ;
+	if (!openConfigFile(configFileName) || !parseConfigFile() || !constructServers())
+		(configFile.close(), exit(1));
 	
-	// fillDefaultDirectives();
+	// should be removed later
+	printServersConfigs();
 }
 
 Config::~Config() {
@@ -36,70 +34,78 @@ Config::~Config() {
 	close(logs);
 }
 
-// void				Config::fillDefaultDirectives() {
-// 	defaultServerDirectives["host"] = "0.0.0.0";
-// 	defaultServerDirectives["port"] = "80";
-// 	defaultServerDirectives["server_name"] = "none";
-// 	defaultServerDirectives["error_page"] = "none";
-// 	defaultServerDirectives["client_max_body_size"] = "none";
-// 	defaultServerDirectives["root"] = "/home/mmaila/Desktop/SERV/www";
-// 	defaultServerDirectives["index"] = "index.html";
-// 	defaultServerDirectives["methods"] = "GET POST DELETE";
-// 	defaultServerDirectives["upload_store"] = "none";
-// 	defaultServerDirectives["redirect"] = "none";
-// 	defaultServerDirectives["autoindex"] = "off";
-// 	defaultServerDirectives["cgi_pass"] = "none";
-
-// 	defaultLocationDirectives["location"] = "none";
-// 	defaultLocationDirectives["root"] = "none";
-// 	defaultLocationDirectives["index"] = "index.html";
-// 	defaultLocationDirectives["methods"] = "GET POST DELETE";
-// 	defaultLocationDirectives["upload_store"] = "none";
-// 	defaultLocationDirectives["redirect"] = "none";
-// 	defaultLocationDirectives["autoindex"] = "off";
-// 	defaultLocationDirectives["cgi_pass"] = "none";
-// 	defaultLocationDirectives["error_page"] = "none";
-// 	defaultLocationDirectives["client_max_body_size"] = "none";
-// }
-
 void				Config::Logger(std::string error) {
 	std::cerr << BOLD << RED << "Webserv: see error.log" << RESET << std::endl;
 	error += "\n";
-	write(logs, error.c_str(), error.length());
+	write(logs, error.c_str(), error.length()); // check for errors?
 }
 
-// void				Config::printServersConfigs() {
-// 	// printf("printServersConfigs()\n");
-// 	for (size_t i = 0; i < Servers.size(); i++) {
-// 		printf("\n\n----------------- SERVER %zu -----------------\n", i);
-// 		printf("LISTEN:\t\t\t%s:%d\n", Servers[i].host.c_str(), Servers[i].port);
-// 		for (size_t j = 0; j < Servers[i].server_name.size(); j++) {
-// 			printf("SERVER NAME:\t\t\t%s\n", Servers[i].server_name[j].c_str());
-// 		}
-// 		for (size_t j = 0; j < Servers[i].locations.size(); j++) {
-// 			printf("----------------- LOCATION %s -----------------\n", Servers[i].locations[j].location.c_str());
-// 			printf("ROOT:\t\t\t%s\n", Servers[i].locations[j].root.c_str());
-// 			for (size_t k = 0; k < Servers[i].locations[j].index.size(); k++) {
-// 				printf("INDEX %zu:\t\t\t%s\n", k, Servers[i].locations[j].index[k].c_str());
-// 			}
-// 			for (size_t k = 0; k < Servers[i].locations[j].methods.size(); k++) {
-// 				printf("METHOD %zu:\t\t\t%s\n", k, Servers[i].locations[j].methods[k].c_str());
-// 			}
-// 			printf("UPLOAD:\t\t\t%s\n", Servers[i].locations[j].upload_store.c_str());
-// 			for (size_t k = 0; k < Servers[i].locations[j].redirect.size(); k++) {
-// 				printf("REDIRECT %zu:\t\t\t%s\n", k, Servers[i].locations[j].redirect[k].c_str());
-// 			}
-// 			printf("AUTOINDEX:\t\t\t%s\n", Servers[i].locations[j].autoindex.c_str());
-// 			printf("CGI:\t\t\t%s\n", Servers[i].locations[j].cgi_pass.c_str());
-// 			for (size_t k = 0; k < Servers[i].locations[j].error_page.size(); k++) {
-// 				printf("ERROR_PAGE %zu:\t\t\t%s\n", k, Servers[i].locations[j].error_page[k].c_str());
-// 			}
-// 			printf("CLIENT_MBS:\t\t\t%s\n", Servers[i].locations[j].client_max_body_size.c_str());
-// 			printf("----------------- END LOCATION -----------------\n");
-// 		}
-// 		printf("----------------- END SERVER -----------------\n");
-// 	}
-// }
+void				Config::printServersConfigs() {
+	for (size_t i = 0; i < Servers.size(); i++) {
+		printf("\n\n----------------- SERVER %zu -----------------\n", i + 1);
+		printf("LISTEN:\t\t\t%s:%s\n", Servers[i].host.c_str(), Servers[i].port.c_str());
+		for (size_t j = 0; j < Servers[i].server_names.size(); j++) {
+			printf("SERVER NAME:\t\t%s\n", Servers[i].server_names[j].c_str());
+		}
+		
+		for (size_t j = 0; j < Servers[i].ServerDirectives.error_pages.size(); j++) {
+			printf("ERROR PAGES:\t\t%d | %s\n", Servers[i].ServerDirectives.error_pages[j].first, Servers[i].ServerDirectives.error_pages[j].second.c_str());
+		}
+		printf("CLIENT_MBS:\t\t%d\n", Servers[i].ServerDirectives.client_max_body_size);
+		printf("ROOT:\t\t\t%s\n", Servers[i].ServerDirectives.root.c_str());
+		printf("ALIAS:\t\t\t%s\n", Servers[i].ServerDirectives.alias.c_str());
+		
+		for (size_t j = 0; j < Servers[i].ServerDirectives.index.size(); j++) {
+			printf("INDEX:\t\t\t%s\n", Servers[i].ServerDirectives.index[j].c_str());
+		}
+		for (size_t j = 0; j < Servers[i].ServerDirectives.index.size(); j++) {
+			printf("METHODS:\t\t%s\n", Servers[i].ServerDirectives.methods[j].c_str());
+		}
+		
+		printf("UPLOAD_STORE:\t\t%s\n", Servers[i].ServerDirectives.upload_store.c_str());
+		
+		if (Servers[i].ServerDirectives.autoindex)
+			printf("AUTOINDEX:\t\tON\n");
+		else if (!Servers[i].ServerDirectives.autoindex)
+			printf("AUTOINDEX:\t\tOFF\n");
+		
+		printf("REDIRECT:\t\t%d | %s\n", Servers[i].ServerDirectives.redirect.first, Servers[i].ServerDirectives.redirect.second.c_str());
+		
+		// printf("CGI_EXT:\t\t\t%s\n", Servers[i].ServerDirectives.cgi_ext.c_str());
+
+		std::map<std::string, Directives>::iterator it = Servers[i].Locations.begin();
+		for (; it != Servers[i].Locations.end(); ++it) {
+			printf("\n----------------- LOCATION %s -----------------\n", it->first.c_str());
+			for (size_t j = 0; j < it->second.error_pages.size(); j++) {
+				printf("ERROR PAGES:\t\t%d | %s\n", it->second.error_pages[j].first, it->second.error_pages[j].second.c_str());
+			}
+			printf("CLIENT_MBS:\t\t%d\n", it->second.client_max_body_size);
+			printf("ROOT:\t\t\t%s\n", it->second.root.c_str());
+			printf("ALIAS:\t\t\t%s\n", it->second.alias.c_str());
+			
+			for (size_t j = 0; j < it->second.index.size(); j++) {
+				printf("INDEX:\t\t\t%s\n", it->second.index[j].c_str());
+			}
+			for (size_t j = 0; j < it->second.methods.size(); j++) {
+				printf("METHODS:\t\t%s\n", it->second.methods[j].c_str());
+			}
+			
+			printf("UPLOAD_STORE:\t\t%s\n", it->second.upload_store.c_str());
+			
+			if (it->second.autoindex)
+				printf("AUTOINDEX:\t\tON\n");
+			else if (!it->second.autoindex)
+				printf("AUTOINDEX:\t\tOFF\n");
+
+			printf("REDIRECT:\t\t%d | %s\n", it->second.redirect.first, it->second.redirect.second.c_str());
+			
+			// printf("CGI_EXT:\t\t\t%s\n", it->second.cgi_ext.c_str());
+			
+			printf("----------------- END LOCATION -----------------\n");
+		}
+		printf("\n----------------- END SERVER -----------------\n");
+	}
+}
 
 int&										Config::getLogs() {
 	return this->logs;
@@ -109,16 +115,8 @@ std::vector<ServerConfig>&					Config::getServers() {
 	return this->Servers;
 }
 
-std::vector<vServerConfigParser>&			Config::getParser() {
-	return this->Parser;
-}
-
 std::ifstream&								Config::getConfigFile() {
 	return this->configFile;
-}
-
-std::string&								Config::getConfigFileName() {
-	return this->configFileName;
 }
 
 std::vector<std::string>&					Config::getConfigFileVector() {

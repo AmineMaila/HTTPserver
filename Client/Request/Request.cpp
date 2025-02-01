@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/21 10:33:50 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/31 20:58:06 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/31 22:49:15 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -73,15 +73,16 @@ t_requestline&				Request::getRequestLineSt() {
 
 int	Request::receiveRequest(int socket)
 {
-	char	buffer[REQUEST_BUFFER_SIZE];
+	char	buf[REQUEST_BUFFER_SIZE] = {0};
 
-	memset(buffer, 0, REQUEST_BUFFER_SIZE);
-	int	bytesReceived = recv(socket, buffer, REQUEST_BUFFER_SIZE, 0);
+	int	bytesReceived = recv(socket, buf, REQUEST_BUFFER_SIZE, 0);
 	if (bytesReceived > 0) {
 		std::cout << "----------REQUEST_OF_CLIENT " << socket << "----------" << std::endl;
-		std::cout << buffer << std::endl;
+		std::cout << buf << std::endl;
 		std::cout << "---------------------------------------------------------" << std::endl;
-		feedRequest(buffer, bufferSize);
+		buffer += std::string(buf, bytesReceived);
+		bufferSize += bytesReceived;
+		parseControlCenter();
 		return (pState);
 		
 	} else if (bytesReceived == 0) { // this is for graceful shutdown (client closes the connection willingly)

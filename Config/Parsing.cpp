@@ -6,13 +6,13 @@
 /*   By: nazouz <nazouz@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/24 20:20:43 by nazouz            #+#    #+#             */
-/*   Updated: 2024/11/27 15:34:41 by nazouz           ###   ########.fr       */
+/*   Updated: 2025/01/31 20:23:12 by nazouz           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Config.hpp"
 
-bool				Config::openConfigFile() {
+bool				Config::openConfigFile(const std::string& configFileName) {
 	size_t				pos = configFileName.find(".conf");
 	if (pos == 0 || pos == std::string::npos || configFileName.substr(pos) != ".conf") {
 		std::cerr << BOLD << RED << "Webserv: invalid config file extention! " << configFileName << RESET << std::endl;
@@ -28,14 +28,14 @@ bool				Config::openConfigFile() {
 
 bool				Config::parseConfigFile() {
 	if (!configFile.is_open())
-		return true;
+		return false;
 	storeConfigFileInVector();
 	if (!basicBlocksCountCheck())
 		return false;
 	fillServerBlocksIndexes();
 	if (!validateBlocksIndexes())
 		return (Logger("'server/location' blocks opening and closing mismatch"), false);
-	return parseAllServerBlocks();
+	return true;
 }
 
 bool				Config::storeConfigFileInVector() {

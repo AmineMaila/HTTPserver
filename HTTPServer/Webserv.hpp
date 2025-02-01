@@ -20,7 +20,6 @@ class Webserv
 {
 public:
 	~Webserv();
-	Webserv();
 	Webserv(std::vector<ServerConfig>& servers);
 
 	void	registerHandler(const int fd, EventHandler *h, uint32_t events);

@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/23 13:01:00 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/30 19:22:20 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/01/31 23:01:27 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,11 @@
 #include <unistd.h>
 #include <list>
 #include <fstream>
+#include <algorithm>
+#include <limits.h>
+
+#define SERVER "SERVER"
+#define LOCATION "LOCATION"
 
 #define RESET      "\033[0m"
 #define BOLD       "\033[1m"
@@ -54,8 +59,26 @@ typedef struct												Directives {
 	std::vector<std::string> 								methods;
 	std::string 											upload_store;
 	bool													autoindex;
-	std::vector<std::string>								redirect; // std::pair<int, std::string>
+	std::pair<int, std::string>								redirect; // std::pair<int, std::string>
 	std::map<std::string, std::string>						cgi_ext; // std::map<std::string, std::string>
+
+	// default values for every directives
+	Directives() {
+		error_pages.push_back(std::make_pair(404, "/home/nazouz/Desktop/Webserv/Errors/400.html"));
+		client_max_body_size = INT_MAX;
+		root = "/home/mmaila/Desktop/SERV/www/";
+		index.push_back("index.html");
+		index.push_back("index.py");
+		index.push_back("index.php");
+		methods.push_back("GET");
+		methods.push_back("POST");
+		methods.push_back("DELETE");
+		upload_store = "/home/nazouz/goinfre/WebservUpload";
+		autoindex = false;
+		cgi_ext[".sh"] = "/usr/bin/sh";
+		cgi_ext[".py"] = "/usr/bin/python3";
+		cgi_ext[".php"] = "/usr/bin/php";
+	}
 }															Directives;
 
 typedef struct												ServerConfig {
@@ -64,17 +87,19 @@ typedef struct												ServerConfig {
 	std::vector<std::string>								server_names;
 	Directives												ServerDirectives;
 	std::map<std::string, Directives>						Locations;
+
+	// default values for server only directives
+	ServerConfig() {
+		host = "127.0.0.1";
+		port = "8080";
+		server_names.push_back("nazouz.com");
+		server_names.push_back("mmaila.com");
+	}
 }															ServerConfig;
-
-typedef struct												vServerConfigParser {
-	std::map<std::string, std::string>						serverDirectives;
-	std::vector< std::map<std::string, std::string> >		locationDirectives;
-}															vServerConfigParser;
-
 
 class Config {
 	private:
-		std::string														configFileName;
+		// std::string														configFileName;
 		std::ifstream													configFile;
 		std::vector<std::string>										configFileVector;
 		
@@ -84,14 +109,14 @@ class Config {
 		int																logs;
 
 		std::vector<ServerConfig>										Servers;
-		std::vector<vServerConfigParser>								Parser;
+		// std::vector<vServerConfigParser>								Parser;
 		
 	public:
 		Config();
 		Config(const std::string& configFileName);
 		~Config();
 
-		bool						openConfigFile();
+		bool						openConfigFile(const std::string& configFileName);
 		// void						fillDefaultDirectives();
 		bool						parseConfigFile();
 		bool						storeConfigFileInVector();
@@ -103,10 +128,12 @@ class Config {
 		bool						locationBlockIsInsideAServerBlock(int locationStart, int locationEnd);
 		
 		bool						parseAllServerBlocks();
-		bool						parseSingleServerBlock(int start, int end, vServerConfigParser& currentServer);
+		bool						parseSingleServerBlock(int start, int end, ServerConfig& currentServer);
+		bool						fillServerBlockDirectives(std::string& key, std::string& value, std::vector<std::string>& alreadyParsed, ServerConfig& currentServer);
+		bool						fillLocationBlockDirectives(std::string& key, std::string& value, std::vector<std::string>& alreadyParsed, Directives& toFill);
 		bool						addToServerParserServerDirectives(const std::string& key, const std::string& value, std::map<std::string, std::string>& directives);
 		bool						validateServerBlockDirectives(std::map<std::string, std::string>& directives);
-		bool						parseSingleLocationBlock(int start, int end, vServerConfigParser& currentServer);
+		bool						parseSingleLocationBlock(int start, int end, ServerConfig& currentServer);
 		bool						addToServerParserLocationDirectives(const std::string& key, const std::string& value, std::map<std::string, std::string>& directives);
 		bool						validateLocationBlockDirectives(std::map<std::string, std::string>& directives);
 		bool						isAllowedDirective(const std::string& directive, const std::string& blockType);
@@ -118,30 +145,34 @@ class Config {
 		std::vector<std::string>	splitStringBySpace(std::string& string);
 		bool						fillLocationDirectives(std::map<std::string, std::string>& ServerParserDirectives, Directives& Location, Directives& ServerDirectives);
 
+
+		bool						isValidPort(const std::string& port, ServerConfig& currentServer);
+		bool						isValidHost(const std::string& host, ServerConfig& currentServer);
+		bool						isValidServerName(const std::string& serverName, ServerConfig& currentServer);
+		bool						isValidErrorPage(const std::string& errorPage, Directives& toFill);
+		bool						isValidClientMaxBodySize(const std::string& client_max_body_size, Directives& toFill);
+		bool						isValidRoot(const std::string& root, Directives& toFill);
+		bool						isValidUploadStore(const std::string& upload_store, Directives& toFill);
+		bool						isValidLocation(const std::string& location);
+		bool						isValidAlias(const std::string& alias, Directives& toFill);
+		bool						isValidIndex(const std::string& index, Directives& toFill);
+		bool						isValidMethods(const std::string& methods, Directives& toFill);
+		bool						isValidRedirect(const std::string& redirect, Directives& toFill);
+		bool						isValidAutoIndex(const std::string& autoindex, Directives& toFill);
+		bool						isValidCgiExt(const std::string& cgi_pass, Directives& toFill);
 		void						printServersConfigs();
 
 		int&								getLogs();
 		std::vector<ServerConfig>&			getServers();
-		std::vector<vServerConfigParser>&	getParser();
+		// std::vector<vServerConfigParser>&	getParser();
 		std::ifstream&						getConfigFile();
-		std::string&						getConfigFileName();
+		// std::string&						getConfigFileName();
 		std::vector<std::string>&			getConfigFileVector();
 		std::vector< std::pair<int, int> >&	getServerBlocksIndexes();
 		std::vector< std::pair<int, int> >&	getLocationBlocksIndexes();
 
 };
 
-bool					isValidPort(const std::string& port);
-bool					isValidHost(const std::string& host);
-bool					isValidServerName(const std::string& serverName);
-bool					isValidErrorPage(const std::string& errorPage);
-bool					isValidClientMaxBodySize(std::string& client_max_body_size);
-bool					isValidPath(const std::string& path);
-bool					isValidIndex(const std::string& index);
-bool					isValidMethods(const std::string& methods);
-bool					isValidRedirect(const std::string& redirect);
-bool					isValidAutoIndex(const std::string& autoindex);
-bool					isValidCgiPass(const std::string& cgi_pass);
 std::string				stringtrim(const std::string& str, const std::string& set);
 bool					stringIsDigit(const std::string& str);
 

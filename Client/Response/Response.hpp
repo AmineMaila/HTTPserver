@@ -16,8 +16,19 @@
 # include "../../Utils/Helpers.hpp"
 # include "../../Config/Config.hpp"
 
-# define SEND_BUFFER_SIZE 4096
+# define SEND_BUFFER_SIZE 16384
 # define MAX_CONCURRENT_PROCESSES 50
+
+enum	State
+{
+	READBODY,
+	READCHUNK,
+	LISTDIR,
+	NEXTRANGE,
+	READRANGE,
+	SENDDATA,
+	FINISHED
+};
 
 struct Range
 {
@@ -25,17 +36,6 @@ struct Range
 	std::string			header;
 	size_t				rangeLength;
 	bool				headerSent = false;
-};
-
-enum	State
-{
-	READBODY,
-	AUTOINDEX,
-	LISTDIR,
-	NEXTRANGE,
-	READRANGE,
-	SENDDATA,
-	FINISHED
 };
 
 struct	CgiInput
@@ -74,26 +74,20 @@ public:
 
 	// external functions
 	void		setInput(struct ResponseInput& input);
-	int			sendResponse( int& socket );
+	void		setBuffer(const std::string& data);
+	int			getStatusCode() const;
 
+	int			sendResponse( int& socket );
 	void		generateHeaders( void );
 
-	// range parsing
-	int			rangeContentLength( void );
-	bool		parseRangeHeader( void );
-
-
-
-	void		handleGET( void );
-	void		handlePOST( void );
-	void		handleDELETE( void );
 
 	// sending body
-	void		openBodyFile();
+	void		openBodyFile(const std::string& path);
 	void		readBody();
+	std::string	buildChunk(const char *data, size_t size);
+	void		readChunk();
 	void		readRange();
 	void		buildRange( void );
-	void		buildChunk();
 	void		getNextRange();
 	bool		sendData(int& socket);
 
@@ -102,6 +96,17 @@ public:
 	void		directoryListing();
 
 private:
+	// range parsing
+	int				rangeContentLength( void );
+	unsigned long	parseRangeValue(std::string& value);
+	bool			parseRangeHeader( void );
+	
+	// Methods
+	void		handleGET( void );
+	void		handlePOST( void );
+	void		handleDELETE( void );
+
+
 	// response needed data
 	struct ResponseInput	input;
 
@@ -118,13 +123,12 @@ private:
 	// response creating process
 	std::string		headers;
 	std::ifstream	bodyFile;
-	bool			chunked;
 	DIR				*dirList; // might produce leaks
 
 	// range
 	std::vector<Range>	ranges;
-	std::string			boundary;
 	size_t				currRange;
+	std::string			boundary;
 
 	// response state
 	enum State	state;

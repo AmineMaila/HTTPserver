@@ -1,9 +1,6 @@
 #include "ServerHandler.hpp"
 
-ServerHandler::~ServerHandler()
-{
-	delete this;
-}
+ServerHandler::~ServerHandler() {}
 
 ServerHandler::ServerHandler() {}
 
@@ -23,7 +20,7 @@ void	ServerHandler::handleEvent(uint32_t events)
 		{
 			std::cerr << "[WEBSERV][ERROR]\t";
 			perror("accept");
-			return ;
+			return;
 		}
 
 		// set non blocking mode and close the fd on execve
@@ -32,7 +29,7 @@ void	ServerHandler::handleEvent(uint32_t events)
 			std::cerr << "[WEBSERV][ERROR]\t" << std::endl;
 			perror("fcntl");
 			close(clientSocket);
-			return ;
+			return;
 		}
 
 		ClientHandler	*client = new ClientHandler(clientSocket, this->vServers);
