@@ -14,6 +14,7 @@ class EventHandler
 public:
 	virtual ~EventHandler() {}
 	virtual	void	handleEvent(uint32_t events) = 0;
+	virtual	int		getFd() const = 0;
 	Webserv	*HTTPserver;
 };
 

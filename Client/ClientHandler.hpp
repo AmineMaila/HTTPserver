@@ -5,13 +5,13 @@
 # include "Response/Response.hpp"
 # include "Response/Error.hpp"
 # include "Request/Request.hpp"
-# include "iostream"
+# include <iostream>
 
 class ClientHandler : public EventHandler
 {
 public:
 	~ClientHandler();
-	ClientHandler(int fd, std::vector<ServerConfig> vServers);
+	ClientHandler(int fd, std::vector<ServerConfig>& vServers);
 
 
 	ServerConfig&	matchingServer(std::string& host);
@@ -24,19 +24,31 @@ public:
 
 	void	reset();
 	void	remove();
-	void	handleEvent(uint32_t events);
 	void 	handleRequest();
 	void 	handleResponse();
+	void	createResponse();
+	void	deleteResponse();
+	void	handleEvent(uint32_t events);
+	int		getFd() const
+	{
+		return (socket);
+	}
 
 private:
-	struct timeval				start;
 	int							socket;
 	Request						request;
-	Response					response;
-	std::vector<ServerConfig>	vServers;
-	int							cgifd; // for cleanup
+
+	Response					*response;
+
+	std::vector<ServerConfig>&	vServers;
+	Directives					config;
+	
+	int							cgifd;
 	bool						keepAlive;
 	
 };
+
+void			fillRequestData(const std::string URI, RequestData& _RequestData);
+void			decodeAbsPath(const std::string ABSPATH, RequestData& _RequestData);
 
 #endif

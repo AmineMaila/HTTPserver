@@ -4,27 +4,44 @@
 Response::~Response()
 {
 	if (dirList)
-	{
 		closedir(dirList);
-		dirList = NULL;
-	}
 }
 
-Response::Response() : contentLength(0), currRange(0), state(READBODY), nextState(READBODY)
+Response::Response() : state(WRITE), nextState(READ)
+{
+	reader = &Response::readBody;
+	sender = &Response::sendHeaders;
+	dirList = NULL;
+	reqCtx = NULL;
+}
+
+Response::Response(int &clientSocket, RequestData *data) : socket(clientSocket), state(WRITE), nextState(READ), reqCtx(data)
 {
 	dirList = NULL;
+	reader = &Response::readBody;
+	sender = &Response::sendHeaders;
+
 	statusCodes.insert(std::make_pair(200, "OK"));
     statusCodes.insert(std::make_pair(201, "Created"));
     statusCodes.insert(std::make_pair(204, "No Content"));
     statusCodes.insert(std::make_pair(206, "Partial Content"));
-    statusCodes.insert(std::make_pair(301, "Moved Permanently"));
+	statusCodes.insert(std::make_pair(301, "Moved Permanently"));
     statusCodes.insert(std::make_pair(302, "Found"));
     statusCodes.insert(std::make_pair(303, "See Other"));
     statusCodes.insert(std::make_pair(307, "Temporary Redirect"));
     statusCodes.insert(std::make_pair(308, "Permanent Redirect"));
-
-	// *****************MIME_TYPES****************** //
-
+    statusCodes.insert(std::make_pair(400, "Bad Request"));
+    statusCodes.insert(std::make_pair(403, "Forbidden"));
+    statusCodes.insert(std::make_pair(404, "Not Found"));
+    statusCodes.insert(std::make_pair(405, "Method Not Allowed"));
+    statusCodes.insert(std::make_pair(413, "Payload Too Large"));
+    statusCodes.insert(std::make_pair(415, "Unsupported Media Type"));
+    statusCodes.insert(std::make_pair(416, "Range Not Satisfiable"));
+    statusCodes.insert(std::make_pair(431, "Request Header Fields Too Large"));
+    statusCodes.insert(std::make_pair(500, "Internal Server Error"));
+    statusCodes.insert(std::make_pair(501, "Not Implemented"));
+    statusCodes.insert(std::make_pair(504, "Gateway Timeout"));
+    statusCodes.insert(std::make_pair(505, "HTTP Version Not Supported"));
 
 	mimeTypes.insert(std::make_pair(".html", "text/html"));
 	mimeTypes.insert(std::make_pair(".htm", "text/html"));
@@ -60,125 +77,122 @@ Response::Response(const Response& rhs)
 	*this = rhs;
 }
 
-Response&	Response::operator=(const Response& rhs)
+Response& Response::operator=(const Response& rhs)
 {
 	if (this != &rhs)
-    {
-        input = rhs.input;
-		contentType = rhs.contentType;
-		contentLength = rhs.contentLength;
-		headers = rhs.headers;
-		dirList = rhs.dirList;
-		ranges = rhs.ranges;
-		boundary = rhs.boundary;
-		currRange = rhs.currRange;
+	{
+		socket = rhs.socket;
 		state = rhs.state;
 		nextState = rhs.nextState;
+		headers = rhs.headers;
 		buffer = rhs.buffer;
-		bodyFile.close();
-		if (dirList)
-		{
-			closedir(dirList);
-			dirList = NULL;
-		}
+		sender = rhs.sender;
+		reqCtx = rhs.reqCtx;
+		dirList = rhs.dirList;
+		contentType = rhs.contentType;
+		contentLength = rhs.contentLength;
 	}
 	return (*this);
 }
 
-void	Response::setInput(struct ResponseInput& input)
+void	Response::setContext(struct RequestData	*ctx)
 {
-	this->input = input;
+	reqCtx = ctx;
 }
 
-void	Response::setBuffer(const std::string& data)
+void	Response::setSocket(int& clientSocket)
 {
-	this->buffer = data;
+	socket = clientSocket;
 }
 
-int		Response::getStatusCode() const
+std::string	Response::buildChunk(const char *data, size_t size) // error
 {
-	return (input.status);
+	return (toHex(size) + "\r\n" + std::string(data, size) + "\r\n");
 }
 
-bool	Response::sendData(int& socket)
+void	Response::nextRange()
 {
-	ssize_t bytesSent = send(socket, buffer.c_str(), buffer.length(), 0);
-	// int err = errno;
-	// std::cerr << bytesSent << std::endl;
-	// errno = err;
+	if (reqCtx->rangeData.current == reqCtx->rangeData.ranges.end())
+	{
+		if (reqCtx->rangeData.ranges.size() > 1)
+		{
+			buffer = "\r\n--" + reqCtx->rangeData.boundary + "--\r\n";
+			state = WRITE;
+			nextState = DONE;
+		}
+		if (reqCtx->rangeData.ranges.size() == 1)//////// FIIIIX
+		{
+			state = DONE;
+		}
+	}
+	else
+	{
+		// std::cout << "RANGE LENGTH OF INDEX " << reqCtx->rangeData.index << ": " << reqCtx->rangeData.ranges[reqCtx->rangeData.index].rangeLength << std::endl;
+		if (reqCtx->rangeData.ranges.size() > 1)
+			buffer.append(reqCtx->rangeData.current->header);
+		bodyFile.seekg(reqCtx->rangeData.current->range.first, std::ios::beg);
+		reqCtx->rangeData.rangeState = GET;
+	}
+}
+
+void		Response::range()
+{
+	switch (reqCtx->rangeData.rangeState)
+	{
+		case NEXT:
+			nextRange();
+			break;
+		case GET:
+			readRange();
+			break;
+	}
+}
+
+bool	Response::sendHeaders()
+{
+	ssize_t bytesSent = send(socket, headers.c_str(), headers.length(), 0);
 	if (bytesSent == -1)
 	{
 		throw(FatalError(strerror(errno)));
 	}
-	std::cout << "--------RESPONSE_DATA_TO_CLIENT " << socket << "----" << input.path << "----" << std::endl;
-	std::cout <<  "RESOURCE : "<< input.path << std::endl;
-	std::cout << buffer << std::endl;
-	std::cout << buffer.size() << std::endl;
-	std::cout << "-----------------------------------------------------"  << std::endl;
+	std::cout << GREEN << "======[SENT DATA OF SIZE " << bytesSent << " (HEADERS)]======" << RESET << std::endl;
+	// std::cout << "__________HEADERS SENT_____________" << std::endl;
+	// std::cout << headers;
+	// std::cout << "___________________________________" << std::endl;
+	headers.erase(0, bytesSent);
+	if (headers.empty())
+		sender = &Response::sendBody;
+	return (headers.empty());
+}
+
+bool	Response::sendBody()
+{
+	ssize_t bytesSent = send(socket, buffer.c_str(), buffer.length(), 0);
+	if (bytesSent == -1)
+	{
+		throw(FatalError(strerror(errno)));
+	}
+	std::cout << GREEN << "======[SENT DATA OF SIZE " << bytesSent << " (BODY)]======" << RESET << std::endl;
+	// std::cout << "__________BODY SENT__" << bytesSent << "___________" << std::endl;
+	// std::cout << buffer;
+	// std::cout << "________________________________" << std::endl;
 	buffer.erase(0, bytesSent);
 	return (buffer.empty());
 }
 
-void printState(enum State state, std::string name);
-
-int	Response::sendResponse( int& socket )
+int	Response::respond()
 {
-	// printState(state, "State");
-	// printState(nextState, "NextState");
 	switch (state)
 	{
-		case READBODY:
-			readBody();
+		case READ:
+			(this->*reader)();
 			break;
-		case READCHUNK:
-			readChunk();
-			break;
-		case LISTDIR:
-			directoryListing();
-			break;
-		case NEXTRANGE:
-			getNextRange();
-			break;
-		case READRANGE:
-			readRange();
-			break;
-		case SENDDATA:
-			if(sendData(socket) == true)
+		case WRITE:
+			if ((this->*sender)() == true)
 				state = nextState;
 			break;
-		case FINISHED:
+		case DONE:
 			return (1);
 	}
 	return (0);
-}
-
-
-/////////////////
-
-void printState(enum State state, std::string name)
-{
-	switch (state)
-	{
-		case READBODY:
-			std::cout << name << "==========>READING BODY" << std::endl;
-			break;
-		case READCHUNK:
-			std::cout << name << "==========>READING CHUNK" << std::endl;
-			break;
-		case LISTDIR:
-			std::cout << name << "==========>LISTING DIR" << std::endl;
-			break;
-		case NEXTRANGE:
-			std::cout << name << "==========>GETTING NEXT RANGE" << std::endl;
-			break;
-		case READRANGE:
-			std::cout << name << "==========>READING RANGE" << std::endl;
-			break;
-		case SENDDATA:
-			std::cout << name << "==========>SENDING DATA" << std::endl;
-			break;
-		case FINISHED:
-			std::cout << name << "==========>FINISHED" << std::endl;
-			break;
-	}
 }

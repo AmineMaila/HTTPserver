@@ -2,7 +2,7 @@
 # define WEBSERV_HPP
 
 #include "../IEventHandler.hpp"
-#include "../Config/Config.hpp"
+#include "../_Config/Config.hpp"
 #include <algorithm>
 #include <netdb.h>
 #include <map>
@@ -10,6 +10,7 @@
 #include <vector>
 #include <ctime>
 #include <signal.h>
+#include <sys/wait.h>
 #include <cstring>
 
 # define MAX_EVENTS 100
@@ -39,7 +40,7 @@ private:
 	int													epoll_fd;
 	std::vector<ServerConfig>							servers;
 	std::map<int, EventHandler*>						handlerMap;
-	std::vector<std::pair<EventHandler*, std::time_t>>	Timer;
+	std::vector<std::pair<EventHandler*, std::time_t> >	Timer;
 	// std::vector<ServerConfig>		vServers; // virtual servers from config file
 };
 

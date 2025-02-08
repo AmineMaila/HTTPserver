@@ -10,29 +10,25 @@ Webserv::Webserv(std::vector<ServerConfig>& servers) : servers(servers)
 
 void print_epoll_events(uint32_t events)
 {
-	printf("Events: ");
-
-	if (events & EPOLLIN)  std::cerr << "EPOLLIN ";
-	if (events & EPOLLOUT) std::cerr << "EPOLLOUT ";
-	if (events & EPOLLRDHUP) std::cerr << "EPOLLRDHUP ";
-	if (events & EPOLLPRI) std::cerr << "EPOLLPRI ";
-	if (events & EPOLLERR) std::cerr << "EPOLLERR ";
-	if (events & EPOLLHUP) std::cerr << "EPOLLHUP ";
-	if (events & EPOLLET) std::cerr << "EPOLLET ";
-	if (events & EPOLLONESHOT) std::cerr << "EPOLLONESHOT ";
-
-	std::cerr << std::endl;
+	if (events & EPOLLIN)  std::cout << "EPOLLIN ";
+	if (events & EPOLLOUT) std::cout << "EPOLLOUT ";
+	if (events & EPOLLRDHUP) std::cout << "EPOLLRDHUP ";
+	if (events & EPOLLPRI) std::cout << "EPOLLPRI ";
+	if (events & EPOLLERR) std::cout << "EPOLLERR ";
+	if (events & EPOLLHUP) std::cout << "EPOLLHUP ";
+	if (events & EPOLLET) std::cout << "EPOLLET ";
+	if (events & EPOLLONESHOT) std::cout << "EPOLLONESHOT ";
 }
 
-void	Webserv::registerHandler(int fd, EventHandler *h, uint32_t events)
+void	Webserv::registerHandler(int fd, EventHandler *handler, uint32_t events)
 {
 	struct epoll_event ev;
 
 	ev.events = events;
-	ev.data.ptr = h;
+	ev.data.ptr = handler;
 	epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
-	handlerMap[fd] = h;
-	h->HTTPserver = this;
+	handlerMap[fd] = handler;
+	handler->HTTPserver = this;
 }
 
 void	Webserv::updateHandler(const int fd, uint32_t events)
@@ -51,9 +47,14 @@ void	Webserv::removeHandler(int fd)
 	std::map<int, EventHandler*>::iterator it = handlerMap.find(fd);
 	if (it != handlerMap.end())
 	{
-		EventHandler	*h = it->second;
+		EventHandler	*handler = it->second;
 		handlerMap.erase(it);
-		delete h;
+		delete handler;
+	}
+	if (handlerMap.size() == 0)
+	{
+		std::cerr << "[WEBSERV] No Servers Left. Exiting..." << std::endl;
+		exit(1);
 	}
 }
 
@@ -152,12 +153,12 @@ void	Webserv::initServers()
 		// resolves domain name bind serverSocket to sockaddr and returns a valid socket
 		serverSocket = bindSocket(it->host, it->port);
 		listenForConnections(serverSocket);
-		std::cout << "[WEBSERV]\t> Server listening on " << it->host << ":" << it->port << std::endl;
+		std::cout << "[WEBSERV]\t " << BLUE << BOLD << "Server listening on " << it->host << ":" << it->port << RESET << std::endl;
 
-		ServerHandler	*h = new ServerHandler(serverSocket);
-		h->addVServer(*it);
+		ServerHandler	*handler = new ServerHandler(serverSocket);
+		handler->addVServer(*it);
 		boundServers.insert(std::make_pair(bindAddress, serverSocket));
-		registerHandler(serverSocket, h, EPOLLIN);
+		registerHandler(serverSocket, handler, EPOLLIN);
 	}
 }
 
@@ -166,13 +167,40 @@ void	Webserv::run()
 	struct epoll_event events[MAX_EVENTS];
 	while (true)
 	{
-		int eventCount = epoll_wait(epoll_fd, events, MAX_EVENTS, 0);
+		int eventCount = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
 
+		std::cout << "EVENT_COUNT (" << eventCount << ") :";
 		for (int i = 0; i < eventCount; i++)
 		{
-			EventHandler	*h = static_cast<EventHandler *>(events[i].data.ptr);
-			// print_epoll_events(events[i].events);
-			h->handleEvent(events[i].events);
+			print_epoll_events(events[i].events);
+		}
+		std::cout << std::endl;
+		for (int i = 0; i < eventCount; i++)
+		{
+			EventHandler	*handler = static_cast<EventHandler *>(events[i].data.ptr);
+			try
+			{
+				// print_epoll_events(events[i].events);
+				if (events[i].events & EPOLLERR)
+				{
+					int fd = handler->getFd();
+					std::cerr << "[WEBSERV][ERROR]\t CLIENT ON SOCKET " << fd << " IS UNREACHABLE" << std::endl;
+					removeHandler(fd);
+				}
+				else
+					handler->handleEvent(events[i].events);
+				// else if (events[i].events & EPOLLHUP)
+				// {
+				// 	int fd = handler->getFd();
+				// 	std::cerr << "[WEBSERV]\t Client Disconnected..." << fd << std::endl;
+				// 	removeHandler(fd);
+				// }
+			}
+			catch (FatalError& err)
+			{
+				std::cerr << "[WEBSERV][ERROR]\t" << err.what() << std::endl;
+				removeHandler(handler->getFd()); // not complete clean up on client and CGI
+			}
 		}
 		// std::vector<std::pair<EventHandler *, std::time_t>>::iterator it;
 		// for (it = Timer.begin(); it != Timer.end(); it++)

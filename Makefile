@@ -6,18 +6,18 @@
 #    By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/11/21 09:47:15 by nazouz            #+#    #+#              #
-#    Updated: 2025/01/31 23:01:51 by mmaila           ###   ########.fr        #
+#    Updated: 2025/02/07 15:14:43 by mmaila           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME			= 		webserv
 
-CPP				= 		c++
+CPP				= 		g++
 
-CPPFLAGS		= 		-Wall -Werror -Wextra -fsanitize=address
+CPPFLAGS		= 		-Wall -Werror -Wextra -fsanitize=address -g -std=c++98
 
 INCLUDE			=		\
-						./Config/Config.hpp \
+						./_Config/Config.hpp \
 						./IEventHandler.hpp \
 						./Client/Request/Request.hpp \
 						./Client/Response/Response.hpp \
@@ -29,25 +29,23 @@ INCLUDE			=		\
 
 
 SRCS			= 		\
-						./Config/Config.cpp \
-						./Config/Parsing.cpp \
-						./Config/ServerConstructor.cpp \
-						./Config/Validators.cpp \
+						./_Config/Config.cpp \
+						./_Config/Parsing.cpp \
+						./_Config/ServerConstructor.cpp \
+						./_Config/Validators.cpp \
 						./HTTPServer/Webserv.cpp \
 						./Client/Request/Request.cpp \
 						./Client/Request/_ControlCenter.cpp \
 						./Client/Request/Headers.cpp \
 						./Client/Request/Body.cpp \
+						./Client/Request/RequestData.cpp \
 						./Client/Response/Response.cpp \
 						./Client/Response/Error.cpp \
-						./Client/Response/Setup.cpp \
-						./Client/Response/AutoIndex.cpp \
-						./Client/Response/Range.cpp \
-						./Client/Response/Methods/GET.cpp \
-						./Client/Response/Methods/POST.cpp \
-						./Client/Response/Methods/DELETE.cpp \
+						./Client/Response/Read.cpp \
+						./Client/Response/Headers.cpp \
 						./Client/CGI/CGIHandler.cpp \
 						./Client/ClientHandler.cpp \
+						./Client/Helpers.cpp \
 						./Server/ServerHandler.cpp \
 						./Utils/Helpers.cpp \
 						./main.cpp

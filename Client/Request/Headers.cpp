@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/05 18:26:22 by nazouz            #+#    #+#             */
-/*   Updated: 2025/02/01 16:04:51 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/02/08 16:14:05 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,8 +15,8 @@
 
 bool			Request::headerExists(const std::string& key) {
 	std::map<std::string, std::string>::iterator it;
-	it = header.headersMap.find(key);
-	if (it == header.headersMap.end())
+	it = _RequestData.Headers.find(key);
+	if (it == _RequestData.Headers.end())
 		return false;
 	return true;
 }
@@ -44,7 +44,7 @@ std::string		Request::extractHeadersFromBuffer() {
 }
 
 bool			Request::decodeURI() {
-	std::string			encodedURI = requestLine.uri;
+	std::string			encodedURI = _RequestData.URI;
 	std::string			decodedURI;
 
 	// std::cout << "Encoded URI: " << encodedURI << std::endl;
@@ -59,7 +59,7 @@ bool			Request::decodeURI() {
 		}
 	}
 	// std::cout << "Decoded URI: " << decodedURI << std::endl;
-	requestLine.uri = decodedURI;
+	_RequestData.URI = decodedURI;
 	return true;
 }
 
@@ -69,7 +69,10 @@ bool			Request::isValidMethod(const std::string& method) {
 	// 	method != "OPTIONS" && method != "TRACE" && method != "PATCH")
 	// 	return false;
 	if (method != "GET" && method != "POST" && method != "DELETE")
+	{
+		std::cout << "METHOD >>>> " << method << std::endl;
 		return (setStatusCode(405), false);
+	}
 	if (method == "DELETE")
 		statusCode = 204;
 	return true;
@@ -123,37 +126,39 @@ bool			Request::parseHeaders() {
 	std::string			fieldname;
 	std::string			fieldvalue;
 
-	for (size_t i = 1; i < header.rawHeaders.size(); i++) {
-		if (header.rawHeaders[i].empty())
+	for (size_t i = 1; i < _RequestRaws.rawHeaders.size(); i++) {
+		if (_RequestRaws.rawHeaders[i].empty())
 			continue;
-		if (!isValidFieldLine(header.rawHeaders[i]))
+		if (!isValidFieldLine(_RequestRaws.rawHeaders[i]))
 			return false;
-		int colonPos = header.rawHeaders[i].find(':');
-		fieldname = header.rawHeaders[i].substr(0, colonPos);
-		fieldvalue = stringtrim(header.rawHeaders[i].substr(colonPos + 1), " \t");
-		header.headersMap[fieldname] = fieldvalue;
+		int colonPos = _RequestRaws.rawHeaders[i].find(':');
+		fieldname = stringtolower(_RequestRaws.rawHeaders[i].substr(0, colonPos));
+		fieldvalue = stringtrim(_RequestRaws.rawHeaders[i].substr(colonPos + 1), " \t");
+		_RequestData.Headers[fieldname] = fieldvalue;
 	}
 
 	std::map<std::string, std::string>::iterator it;
-	it = header.headersMap.find("Host");
-	if (it != header.headersMap.end())
-		header.host = it->second;
+	it = _RequestData.Headers.find("host");
+	if (it != _RequestData.Headers.end())
+		_RequestData.host = it->second;
 	
-	it = header.headersMap.find("Content-Type");
-	if (it != header.headersMap.end())
-		header.contentType = it->second;
+	it = _RequestData.Headers.find("content-type");
+	if (it != _RequestData.Headers.end())
+		_RequestData.contentType = it->second;
 	
-	it = header.headersMap.find("Connection");
-	if (it != header.headersMap.end())
-		header.connection = it->second;
+	it = _RequestData.Headers.find("connection");
+	if (it != _RequestData.Headers.end()) {
+		_RequestData.connection = it->second;
+		_RequestData.keepAlive = (it->second == "keep-alive" || it->second == "keepAlive");
+	}
 	
-	it = header.headersMap.find("Transfer-Encoding");
-	if (it != header.headersMap.end())
-		header.transferEncoding = stringtolower(it->second);
+	it = _RequestData.Headers.find("transfer-encoding");
+	if (it != _RequestData.Headers.end())
+		_RequestData.transferEncoding = stringtolower(it->second);
 	
-	it = header.headersMap.find("Content-Length");
-	if (it != header.headersMap.end() && stringIsDigit(it->second))
-		body.contentLength = std::atoi(it->second.c_str());
+	it = _RequestData.Headers.find("content-length");
+	if (it != _RequestData.Headers.end() && stringIsDigit(it->second))
+		_RequestData.contentLength = std::atoi(it->second.c_str());
 	
 	return true;
 }
@@ -163,11 +168,11 @@ bool			Request::parseRequestLine() {
 	std::string			tokens[3];
 	size_t				tokenCount = 0;
 	size_t				spaceCount = 0;
-	std::stringstream	ss(header.rawHeaders[0]);
+	std::stringstream	ss(_RequestRaws.rawHeaders[0]);
 
-	requestLine.rawRequestLine = header.rawHeaders[0];
-	for (size_t i = 0; requestLine.rawRequestLine[i]; i++)
-		if (requestLine.rawRequestLine[i] == ' ')
+	_RequestRaws.rawRequestLine = _RequestRaws.rawHeaders[0];
+	for (size_t i = 0; _RequestRaws.rawRequestLine[i]; i++)
+		if (_RequestRaws.rawRequestLine[i] == ' ')
 			spaceCount++;
 	if (spaceCount != 2)
 		return (setStatusCode(400), false);
@@ -179,12 +184,12 @@ bool			Request::parseRequestLine() {
 		return (setStatusCode(400), false);
 	
 
-	requestLine.method = tokens[0];
-	requestLine.uri = tokens[1];
-	requestLine.httpversion = tokens[2];
-	return     isValidMethod(requestLine.method)
-			&& isValidURI(requestLine.uri)
-			&& isValidHTTPVersion(requestLine.httpversion)
+	_RequestData.Method = tokens[0];
+	_RequestData.URI = tokens[1];
+	_RequestData.HTTPversion = tokens[2];
+	return     isValidMethod(_RequestData.Method)
+			&& isValidURI(_RequestData.URI)
+			&& isValidHTTPVersion(_RequestData.HTTPversion)
 			&& decodeURI();
 }
 
@@ -204,53 +209,61 @@ bool			Request::storeHeadersInVector() {
 		line = toParse.substr(opos, rpos - opos);
 		if (line.empty())
 			break ;
-		header.rawHeaders.push_back(line);
+		_RequestRaws.rawHeaders.push_back(line);
 		opos = rpos + 2;
 	}
 	return true;
 }
 
+// this function should be revised against RFC
 bool			Request::validateRequestHeaders() {
-	return true; // ???
-	bool			ContentLength = headerExists("Content-Length");
-	bool			TransferEncoding = headerExists("Transfer-Encoding");
-
-	if (ContentLength == TransferEncoding)
+	return (true);
+	if (!headerExists("host") || _RequestData.host.empty())
 		return (setStatusCode(400), false);
 	
-	if (TransferEncoding && header.transferEncoding == "chunked")
-		isEncoded = true;
-	else if (TransferEncoding && header.transferEncoding != "chunked")
-		return (setStatusCode(501), false);
-
-	if (ContentLength && body.contentLength == -1)
+	if (!headerExists("connection") || _RequestData.connection.empty())
 		return (setStatusCode(400), false);
+	else
+		_RequestData.Headers.insert(std::make_pair("connection", "keep-alive"));
 	
-	if (!headerExists("Host") || !headerExists("Connection"))
-		return (setStatusCode(400), false);
-	
-	if (header.host.empty() || header.connection.empty())
-		return (setStatusCode(400), false);
+	if (_RequestData.Method == "POST") {
+		bool			ContentLength = headerExists("content-length");
+		bool			TransferEncoding = headerExists("transfer-encoding");
 
-	int pos = header.contentType.find("multipart/form-data; boundary=") + 30;
-	if (headerExists("Content-Type") && pos != 30)
-		return (setStatusCode(501), false);
-	else if (headerExists("Content-Type") && pos == 30 && header.contentType[pos])
-		body.boundaryBegin = "--" + header.contentType.substr(pos), body.boundaryEnd = body.boundaryBegin + "--", isMultipart = true;
+		if (ContentLength == TransferEncoding)
+			return (setStatusCode(400), false);
+		
+		if (TransferEncoding && _RequestData.transferEncoding == "chunked")
+			isEncoded = true;
+		else if (TransferEncoding && _RequestData.transferEncoding != "chunked")
+			return (setStatusCode(501), false);
 
+		if (ContentLength && _RequestRaws.contentLength == -1) // && body.contentLength == -1 ???
+			return (setStatusCode(400), false);
+		
+
+		int pos = _RequestData.contentType.find("multipart/form-data; boundary=") + 30;
+		if (headerExists("content-type") && pos != 30)
+			return (setStatusCode(501), false);
+		else if (headerExists("content-type") && pos == 30 && _RequestData.contentType[pos])
+			_RequestRaws.boundaryBegin = "--" + _RequestData.contentType.substr(pos), _RequestRaws.boundaryEnd = _RequestRaws.boundaryBegin + "--", isMultipart = true;
+	}
 	return true;
 }
 
 // HEADERS CONTROL CENTER
 bool			Request::parseRequestLineAndHeaders() {
 	if (!storeHeadersInVector())
-		std::cout << "[ERROR]\tstoreHeadersInVector();" << std::endl;
+		std::cerr << "[ERROR]\tstoreHeadersInVector();" << std::endl;
 	if (!parseRequestLine())
-		std::cout << "[ERROR]\tparseRequestLine();" << std::endl;
+		std::cerr << "[ERROR]\tparseRequestLine();" << std::endl;
 	if (!parseHeaders())
-		std::cout << "[ERROR]\tparseHeaders();" << std::endl;
+		std::cerr << "[ERROR]\tparseHeaders();" << std::endl;
 	if (!validateRequestHeaders())
-		std::cout << "[ERROR]\tvalidateRequestHeaders();" << std::endl;
+		std::cerr << "[ERROR]\tvalidateRequestHeaders();" << std::endl;
+	setMatchingConfig();
+	fillRequestData(_RequestData.URI, _RequestData);
+	std::cout << "status code : " << statusCode << std::endl;
 	if (statusCode == 200)
 		pState = HEADERS_FINISHED;
 	else

@@ -37,4 +37,5 @@ void	ServerHandler::handleEvent(uint32_t events)
 
 		std::cout << "[SERVER]\tClient Connected To Socket " << clientSocket << "..." << std::endl;
 	}
+	// should we check on other event such as errors?
 }

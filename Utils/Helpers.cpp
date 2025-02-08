@@ -6,7 +6,7 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/13 16:28:26 by nazouz            #+#    #+#             */
-/*   Updated: 2025/01/29 22:00:43 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/02/08 15:36:49 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,10 +68,9 @@ std::string			stringtrim(const std::string& str, const std::string& set) {
     return str.substr(first, last - first + 1);
 }
 
-std::string		stringtolower(std::string& str) {
+std::string		stringtolower(std::string str) {
 	for (size_t i = 0; i < str.size(); i++) {
-		if (str[i] >= 'A' && str[i] <= 'Z')
-			str[i] += 32;
+		str[i] = std::tolower(str[i]);
 	}
 	return str;
 }
@@ -129,12 +128,17 @@ std::string	getContentType(const std::string& target, std::map<std::string, std:
 	std::map<std::string, std::string>::iterator it;
 	std::string ext;
 	std::string file = target.substr(target.find_last_of('/'));
-	ext = file.substr(file.find('.'));
-	it = mimeTypes.find(ext);
-	if (it != mimeTypes.end())
-		return (it->second);
-	else
-		return ("text/plain");
+	
+	size_t pos;
+	pos = file.find('.');
+	if (pos != std::string::npos)
+	{
+		ext = file.substr(pos);
+		it = mimeTypes.find(ext);
+		if (it != mimeTypes.end())
+			return (it->second);
+	}
+	return ("text/plain");
 }
 
 std::string	getDate( void )
@@ -215,6 +219,18 @@ std::string		toHex(size_t num)
 
 	ss << std::uppercase << std::hex << num;
 	return (ss.str());
+}
+
+void	capitalize(std::string& word)
+{
+	size_t pos = 0;
+	static char alpha[53] = "abcdefghijklmnopqrstuvwxyz";
+
+	while ((pos = word.find_first_of(alpha, pos)) != std::string::npos)
+	{
+		word[pos++] -= 32;
+		pos = word.find_first_not_of(alpha, pos);
+	}
 }
 
 // #include <arpa/inet.h>
