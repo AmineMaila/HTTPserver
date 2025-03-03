@@ -2,59 +2,53 @@
 # define CGIHANDLER_HPP
 
 # include "../../IEventHandler.hpp"
-# include "../Response/Response.hpp"
+# include "../Response/AResponse.hpp"
 
-# define CGI_BUFFER_SIZE 4096
-
-
-enum CGIState
-{
-	CHUNKED,
-	LENGTH
-};
-
-class FatalError;
-
-class CGIHandler : public EventHandler, public Response
+class CGIHandler : public EventHandler, public AResponse
 {
 public:
 	virtual ~CGIHandler();
 	CGIHandler(int& clientSocket, RequestData *data);
-
-	int		setup();
-	// void	readCgi();
-	void	handleEvent(uint32_t events);
+	CGIHandler(const CGIHandler& rhs);
+	CGIHandler& operator=(const CGIHandler& rhs);
 	
-
-
-
-	// int		getFd() const;
 	pid_t	getPid() const;
-	int		getFd() const
-	{
-		return (outfd);
-	}
+	int		getFd() const;
 
-	std::vector<std::string>	headersToEnv();
-	void						buildEnv();
+	void	buildEnv();
 
-	void	processCGIHeaders(std::map<std::string, std::string>& headersMap);
-	void	parseCGIHeaders();
 
-	void	readChunked();
-	void	readLength();
-	int		feedCgi(const char *buf);
+	void	execCGI();
+	void	handleEvent(uint32_t events);
+
+	void	validateHeaders();
+	void	parseHeaders();
+	void	addHeaders();
+	void	generateHeaders();
+
+	
+	void	readCGILength();
+	void	readCGIChunked();
+	bool	storeBody();
+
+	void	setBuffer(std::string buffer);
+	void	setBuffer(char *buf, ssize_t size);
+
 
 	int		respond();
 
 private:
 	// created here
-	int				outfd; // file descriptor where cgi writes its output into
-	int				infd; // file descriptor where cgi reads input from
-	pid_t			pid;
-	bool			parseBool;
-	enum CGIState	CGIState;
-	std::vector<std::string> envvars;
+	std::vector<std::string>			envVars;
+	std::vector<char *>					envPtr;
+	char								*args[3];
+	std::map<std::string, std::string>	headersMap;
+
+	int		cgiSocket;
+	size_t	inBodySize;
+	pid_t	pid;
+	bool	headersParsed;
+	void	(CGIHandler::*CGIreader)();
 };
 
 #endif

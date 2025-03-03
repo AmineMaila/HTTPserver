@@ -6,7 +6,7 @@
 /*   By: nazouz <nazouz@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/25 18:55:44 by nazouz            #+#    #+#             */
-/*   Updated: 2025/02/02 13:39:39 by nazouz           ###   ########.fr       */
+/*   Updated: 2025/03/02 18:04:48 by nazouz           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 bool				Config::constructServers() {
 	for (size_t i = 0; i < serverBlocksIndexes.size(); i++) {
-		int						start, end;
+		int						start = 0, end = 0;
 		ServerConfig			newServerBlock;
 		
 		start = serverBlocksIndexes[i].first;
@@ -30,8 +30,8 @@ bool				Config::parseSingleServerBlock(int start, int end, ServerConfig& current
 	std::vector<std::string>		alreadyParsed;
 	
 	for (int i = start + 1; i < end; i++) {
-		if (configFileVector[i] == "[location]") {
-			i = getBlockEndIndex(i, "[location]").second;
+		if (configFileVector[i] == "[LOCATION]") {
+			i = getBlockEndIndex(i, "[LOCATION]").second;
 			continue;
 		}
 
@@ -44,11 +44,14 @@ bool				Config::parseSingleServerBlock(int start, int end, ServerConfig& current
 			return false;
 		alreadyParsed.push_back(key);
 	}
+	if (std::find(alreadyParsed.begin(), alreadyParsed.end(), "root") == alreadyParsed.end())
+		return (ErrorLogger("[SERVER] the root directive must be set"), false);
+
 	for (int i = start + 1; i < end; i++) {
-		if (configFileVector[i] == "[location]") {
-			if (!parseSingleLocationBlock(i, getBlockEndIndex(i, "[location]").second, currentServer))
+		if (configFileVector[i] == "[LOCATION]") {
+			if (!parseSingleLocationBlock(i, getBlockEndIndex(i, "[LOCATION]").second, currentServer))
 				return false;
-			i = getBlockEndIndex(i, "[location]").second;
+			i = getBlockEndIndex(i, "[LOCATION]").second;
 		}
 	}
 	return true;
@@ -68,7 +71,7 @@ bool				Config::parseSingleLocationBlock(int start, int end, ServerConfig& curre
 		return (ErrorLogger("[LOCATION] invalid line syntax : " + location_key + " = " + location_value), false);
 	if (location_key != "location")
 		return (ErrorLogger("[LOCATION] location must be specified in the first line of location block"), false);
-	if (!isValidLocation(location_value))
+	if (!isValidLocation(location_value, currentServer.Locations))
 		return (ErrorLogger("[LOCATION] invalid line syntax : " + location_key + " = " + location_value), false);
 
 	for (int i = start + 2; i < end; i++) {

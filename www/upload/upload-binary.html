@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary File Upload</title>
+</head>
+<body>
+    <h2>Upload a Binary File</h2>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload</button>
+    <p id="status"></p>
+
+    <script>
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                document.getElementById('status').innerText = "Please select a file.";
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                fetch('/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/octet-stream',
+                        'X-File-Name': file.name
+                    },
+                    body: event.target.result
+                }).then(response => {
+                    if (response.status === 201) {
+                        document.getElementById('status').innerText = "File uploaded successfully.";
+                    } else {
+                        document.getElementById('status').innerText = "Upload failed.";
+                    }
+                }).catch(error => {
+                    document.getElementById('status').innerText = "Error: " + error;
+                });
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>

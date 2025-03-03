@@ -3,27 +3,21 @@
 
 #include <iostream>
 #include <vector>
-#include "../../Utils/Helpers.hpp"
-#include "Response.hpp"
+#include "AResponse.hpp"
 
-class FatalError : public std::exception
+class ErrorPage : public AResponse
 {
 public:
-	FatalError(const char *msg);
+	virtual ~ErrorPage();
+	ErrorPage(Code& e, int& socket, RequestData	*data);
 
-	virtual const char *what() const throw();
-
+	void	readBody( void );
+	void	generateHeaders( void );
+	int		respond( void );
+	
 private:
-	const char	*msg;
-};
-
-class CGIRedirectException : public std::exception
-{
-public:
-	virtual ~CGIRedirectException() throw();
-	CGIRedirectException(const std::string& location);
-
-	std::string location;
+	std::ifstream	bodyFile;
+	Code			status;
 };
 
 #endif

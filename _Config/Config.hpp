@@ -6,7 +6,7 @@
 /*   By: nazouz <nazouz@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/23 13:01:00 by nazouz            #+#    #+#             */
-/*   Updated: 2025/02/07 13:02:20 by nazouz           ###   ########.fr       */
+/*   Updated: 2025/03/02 20:21:05 by nazouz           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,13 @@
 #include <fstream>
 #include <algorithm>
 #include <limits.h>
+#include <sys/stat.h>
+// #include "../Utils/Helpers.hpp"
+
+#define B  1
+#define KB 1024 * B
+#define MB 1024 * KB
+#define GB 1024 * MB
 
 #define RESET      "\033[0m"
 #define BOLD       "\033[1m"
@@ -36,6 +43,7 @@
 #define BLUE       "\033[34m"
 #define MAGENTA    "\033[35m"
 #define CYAN       "\033[36m"
+#define ORANGE     "\033[93m"
 #define WHITE      "\033[37m"
 #define BG_BLACK   "\033[40m"
 #define BG_RED     "\033[41m"
@@ -48,33 +56,25 @@
 
 
 typedef struct								Directives{
-	std::map<int, std::string>				error_pages;
-	int										client_max_body_size;
+	std::map<size_t, std::string>			error_pages;
+	size_t									client_max_body_size;
 	std::string								root;
 	std::string								alias;
 	std::vector<std::string>				index;
 	std::vector<std::string> 				methods;
 	std::string 							upload_store;
 	bool									autoindex;
-	std::pair<int, std::string>				redirect;
+	std::pair<size_t, std::string>			redirect;
 	std::map<std::string, std::string>		cgi_ext;
 
 	// default values for every directives
-	Directives() {
-		// error_pages.push_back(std::make_pair(404, "/home/nazouz/Desktop/Webserv/Errors/400.html"));
-		client_max_body_size = INT_MAX;
-		root = "/home/mmaila/Desktop/SERV/www/";
+	Directives() : client_max_body_size(10 * MB), autoindex(false) {
+		// root = "/home/mmaila/Desktop/SERV/www/";
 		index.push_back("index.html");
-		index.push_back("index.py");
-		index.push_back("index.php");
 		methods.push_back("GET");
 		methods.push_back("POST");
 		methods.push_back("DELETE");
-		upload_store = "/home/nazouz/goinfre/WebservUpload";
-		autoindex = false;
-		cgi_ext[".sh"] = "/usr/bin/sh";
-		cgi_ext[".py"] = "/usr/bin/python3";
-		cgi_ext[".php"] = "/usr/bin/php";
+		// upload_store = "/home/nazouz/goinfre/WebservUpload";
 	}
 }															Directives;
 
@@ -87,8 +87,8 @@ typedef struct												ServerConfig {
 
 	// default values for server only directives
 	ServerConfig() {
-		host = "127.0.0.1";
-		port = "8080";
+		host = "0.0.0.0";
+		port = "80";
 		server_names.push_back("nazouz.com");
 		server_names.push_back("mmaila.com");
 	}
@@ -101,8 +101,6 @@ class Config {
 		
 		std::vector< std::pair<int, int> >								serverBlocksIndexes;
 		std::vector< std::pair<int, int> >								locationBlocksIndexes;
-
-		int																logs;
 
 		std::vector<ServerConfig>										Servers;
 		
@@ -137,7 +135,7 @@ class Config {
 		bool						isValidClientMaxBodySize(const std::string& client_max_body_size, Directives& toFill);
 		bool						isValidRoot(const std::string& root, Directives& toFill);
 		bool						isValidUploadStore(const std::string& upload_store, Directives& toFill);
-		bool						isValidLocation(const std::string& location);
+		bool						isValidLocation(const std::string& location, std::map<std::string, Directives>& Locations);
 		bool						isValidAlias(const std::string& alias, Directives& toFill);
 		bool						isValidIndex(const std::string& index, Directives& toFill);
 		bool						isValidMethods(const std::string& methods, Directives& toFill);
@@ -157,7 +155,9 @@ class Config {
 
 };
 
-std::string				stringtrim(const std::string& str, const std::string& set);
+// void					split(const std::string& str, const char *set, std::vector<std::string>& result);
+std::vector<std::string>	split(const std::string& tosplit, const std::string& charset);
+std::string				stringtrim(const std::string& str, const char *set);
 bool					stringIsDigit(const std::string& str);
 
 #endif

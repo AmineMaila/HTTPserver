@@ -1,10 +1,18 @@
 #include "ServerHandler.hpp"
 
-ServerHandler::~ServerHandler() {}
+ServerHandler::~ServerHandler()
+{
+	HTTPserver->removeHandler(socket);
+}
 
 ServerHandler::ServerHandler() {}
 
 ServerHandler::ServerHandler(int fd) : socket(fd) {}
+
+int		ServerHandler::getFd() const
+{
+	return (socket);
+}
 
 void	ServerHandler::addVServer(ServerConfig& server)
 {
@@ -24,7 +32,7 @@ void	ServerHandler::handleEvent(uint32_t events)
 		}
 
 		// set non blocking mode and close the fd on execve
-		if (fcntl(clientSocket, F_SETFL, FD_CLOEXEC | O_NONBLOCK) == -1)
+		if (fcntl(clientSocket, F_SETFL, FD_CLOEXEC) == -1)
 		{
 			std::cerr << "[WEBSERV][ERROR]\t" << std::endl;
 			perror("fcntl");
@@ -33,9 +41,13 @@ void	ServerHandler::handleEvent(uint32_t events)
 		}
 
 		ClientHandler	*client = new ClientHandler(clientSocket, this->vServers);
-		this->HTTPserver->registerHandler(clientSocket, client, EPOLLIN);
+		HTTPserver->registerHandler(clientSocket, client, EPOLLIN);
+		HTTPserver->addTimer(clientSocket);
 
 		std::cout << "[SERVER]\tClient Connected To Socket " << clientSocket << "..." << std::endl;
 	}
-	// should we check on other event such as errors?
+	else if (events & EPOLLHUP)
+	{
+		throw(Disconnect("[SERVER-" + _toString(socket) + "] SHUTDOWN"));
+	}
 }

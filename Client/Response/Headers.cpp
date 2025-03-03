@@ -1,38 +1,37 @@
 #include "Response.hpp"
-#include "Error.hpp"
 
-int	Response::rangeContentLength( void )
+void	Response::handlePOST()
 {
-	int length = 0;
-	std::vector<Range>::iterator it = reqCtx->rangeData.ranges.begin();
-
-	for (; it != reqCtx->rangeData.ranges.end(); it++)
-	{
-		length += it->header.length();
-		length += it->rangeLength;
-	}
-	length += 8 + reqCtx->rangeData.boundary.length(); // 8 is  the length of the constant "\r\n--" "--\r\n" // FIX
-	return (length);
+	buffer = "<!DOCTYPE html>\n"
+			"<html>\n"
+			"<head>\n"
+			"<title>Upload Successful</title>\n"
+			"</head>\n"
+			"<body>\n"
+			"<center><h1>Upload Successful</h1></center>\n"
+			"<hr width=\"100%\" size=\"1\" color=\"black\">\n"
+			"<center><p>data has been uploaded successfully.</p></center>\n"
+			"</body>\n"
+			"</html>\n";
+	headers.append("\r\nContent-Type: text/html");
+	headers.append("\r\nContent-Length: " + _toString(buffer.size()));
+	nextState = DONE;
 }
 
-void	Response::handleRange()
+void	Response::handleDELETE( void )
 {
-	if (reqCtx->rangeData.ranges.size() == 1)
+	if (reqCtx->isDir)
 	{
-		contentLength = reqCtx->rangeData.current->rangeLength;
-		headers.append("\r\nContent-Range: bytes "
-			+ _toString(reqCtx->rangeData.current->range.first)
-			+ "-"
-			+ _toString(reqCtx->rangeData.current->range.second)
-			+ "/"
-			+ _toString(contentLength));
+		if (rmdir(reqCtx->fullPath.c_str()) == -1)
+			throw(Code(500));
 	}
 	else
 	{
-		contentType = "multipart/byteranges; boundary=" + reqCtx->rangeData.boundary;
-		contentLength = rangeContentLength();
+		if (remove(reqCtx->fullPath.c_str()) == -1)
+			throw(Code(500));
 	}
-	reader = &Response::readRange;
+	reqCtx->StatusCode = 204;
+	nextState = DONE;
 }
 
 void	Response::handleGET( void )
@@ -46,13 +45,13 @@ void	Response::handleGET( void )
 	}
 	else
 	{
-		bodyFile.open(reqCtx->fullPath.c_str()); // no protection
+		bodyFile.open(reqCtx->fullPath.c_str());
 		if (!bodyFile.is_open())
-			throw(500);
+			throw(Code(500));
 		contentType = getContentType(reqCtx->fullPath, mimeTypes);
 		contentLength = fileLength(reqCtx->fullPath);
 	
-		if (reqCtx->isRange)
+		if (reqCtx->Headers.find("range") != reqCtx->Headers.end())
 			handleRange();
 		headers.append("\r\nContent-Length: " + _toString(contentLength));
 	}
@@ -62,22 +61,27 @@ void	Response::handleGET( void )
 
 void	Response::generateHeaders( void )
 {
-	headers = "HTTP/1.1 " + _toString(reqCtx->StatusCode) + " " + statusCodes[reqCtx->StatusCode]; // status line
 	headers.append("\r\nServer: webserv/1.0");
 	headers.append("\r\nDate: " + getDate());
 
-	if (reqCtx->Method == "GET") // check allowed methods
+	if (reqCtx->Method == "GET")
 		handleGET();
-	// else if (reqCtx->Method == "POST")
-	// 	handlePOST();
 	else if (reqCtx->Method == "DELETE")
-		nextState = DONE;
+		handleDELETE();
+	else if (reqCtx->Method == "POST")
+		handlePOST();
 
 	if (reqCtx->keepAlive)
 		headers.append("\r\nConnection: keep-alive");
 	else
 		headers.append("\r\nConnection: close");
 
+	headers.insert(0, "HTTP/1.1 " + _toString(reqCtx->StatusCode) + " " + getCodeDescription(reqCtx->StatusCode)); // status line
 	headers.append("\r\n\r\n");
-	sender = &Response::sendHeaders;
+	if (reqCtx->Method == "POST")
+		headers.append(buffer);
+	if ((this->*sender)() == true)
+		state = nextState;
+	else
+		state = WRITE;
 }

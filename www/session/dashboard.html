@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .dashboard-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+        .content {
+            margin-bottom: 2rem;
+        }
+        .navigation a {
+            display: inline-block;
+            margin-right: 1rem;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .navigation a:hover {
+            text-decoration: underline;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+        .timer {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>Welcome to your Dashboard</h1>
+            <div>
+                <button class="logout-btn" onclick="location.href='/cgi-bin/login/logout.py'">Logout</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <h2>Your session is active</h2>
+            <p>You have successfully logged in. This session will expire in 30 seconds if you don't navigate to another page.</p>
+            <p>This is a protected area that only logged-in users can access.</p>
+        </div>
+        
+        <div class="navigation">
+            <h3>Quick Navigation</h3>
+            <a href="/session/page1.html">Page 1</a>
+            <a href="/session/page2.html">Page 2</a>
+            <a href="/session/page3.html">Page 3</a>
+        </div>
+    </div>
+
+    <script>
+        // Add event listeners to intercept clicks on links to check session first
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('a:not([href^="/cgi-bin/login/"])');
+
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const destination = this.getAttribute('href');
+                    
+                    // Check session before navigating
+                    fetch('/cgi-bin/login/check_session.py')
+                        .then(response => {
+                            if (response.redirected) {
+                                window.location.href = response.url;
+                            } else {
+                                window.location.href = destination;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Session check failed:', error);
+                            window.location.href = destination;
+                        });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

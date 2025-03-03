@@ -6,66 +6,41 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/13 16:28:26 by nazouz            #+#    #+#             */
-/*   Updated: 2025/02/08 15:36:49 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/03/03 00:42:38 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Helpers.hpp"
 
-// bool			Request::printParsedRequest() {
-// 	std::cout << "*********************************************" << std::endl;
-// 	// printf("/---------------- REQUEST ----------------/\n\n");
-// 	// for (size_t i = 0; i < rawRequest.size(); i++) {
-// 	// 	printf("[%s]\n", rawRequest[i].c_str());
-// 	// }
 
-// 	// startline
-// 	printf("/---------------- REQUESTLINE ----------------/\n");
-// 	// printf("RAW STARTLINE: [%s]\n", requestLine.rawRequestLine.c_str());
-// 	printf("METHOD: [%s]\n", requestLine.method.c_str());
-// 	printf("URI: [%s]\n", requestLine.uri.c_str());
-// 	printf("HTTP VERSION: [%s]\n\n", requestLine.httpversion.c_str());
-
-// 	// header
-// 	printf("/----------------- HEADERS -----------------/\n");
-// 	// printf("RAW HEADERS: [%s]\n", header.rawHeader.c_str());
-// 	std::map<std::string, std::string>::iterator it = header.headersMap.begin();
-// 	std::map<std::string, std::string>::iterator ite = header.headersMap.end();
-// 	while (it != ite) {
-// 		printf("[%s][%s]\n", it->first.c_str(), it->second.c_str());
-// 		it++;
-// 	}
+std::vector<std::string>	split(const std::string& tosplit, const std::string& charset) {
+	std::vector<std::string> result;
+	size_t start = 0, end;
 	
-// 	// body
-// 	// printf("\n/------------------- BODY -------------------/\n");
-// 	// printf("RAW BODY: [%s]\n", body.rawBody.c_str());
-// 	std::cout << "*********************************************" << std::endl;
-// 	return true;
-// }
+	while ((end = tosplit.find_first_of(charset, start)) != std::string::npos) {
+		if (end > start) {
+			result.push_back(tosplit.substr(start, end - start));
+		}
+		start = end + 1;
+	}
+	
+	if (start < tosplit.length())
+		result.push_back(tosplit.substr(start));
+	return result;
+}
 
-// std::string		stringtrim(const std::string& str, const std::string& set) {
-// 	size_t		first = 0;
-// 	size_t		last = str.size();
+std::string			stringtrim(const std::string& str, const char *set) {
+	if (str.empty() || !set) {
+		return (str);
+	}
 
-// 	while (!strchr(set.c_str(), str[first]))
-// 		first++;
-// 	while (!strrchr(set.c_str(), str[last]))
-// 		last--;
-// 	return str.substr(first, last - first);
-// }
+	size_t first = str.find_first_not_of(set);
+	if (first == std::string::npos) {
+		return "";
+	}
 
-std::string			stringtrim(const std::string& str, const std::string& set) {
-    if (str.empty() || set.empty()) {
-        return str; // Nothing to trim
-    }
-
-    size_t first = str.find_first_not_of(set);
-    if (first == std::string::npos) {
-        return ""; // Entire string consists of characters from `set`
-    }
-
-    size_t last = str.find_last_not_of(set);
-    return str.substr(first, last - first + 1);
+	size_t last = str.find_last_not_of(set);
+	return str.substr(first, last - first + 1);
 }
 
 std::string		stringtolower(std::string str) {
@@ -84,22 +59,21 @@ bool			stringIsDigit(const std::string& str) {
 }
 
 bool			isHexa(const std::string& num) {
-	std::string		hex = "0123456789ABCDEFabcdef";
-
-	for (size_t i = 0; i < num.size(); i++) {
-		if (hex.find(num[i]) == std::string::npos)
-			return false;
-	}
-	return true;
+	static const char	hex[] = "0123456789ABCDEFabcdef";
+	
+	if (num.find_first_not_of(hex) != std::string::npos)
+		return (false);
+	return (true);
 }
 
-int				hexToInt(const std::string& num) {
-	int						result;
-	std::stringstream		ss;
+ssize_t htoi(const std::string& num)
+{
+	char *stop;
+	unsigned long value = std::strtoul(num.c_str(), &stop, 16);
+	if (ERANGE == errno || EINVAL == errno)
+		return -1;
 
-	ss << std::hex << num;
-	ss >> result;
-	return result;
+	return (static_cast<ssize_t>(value));
 }
 
 unsigned int	parseIPv4(const std::string& ipAddress) {
@@ -143,12 +117,12 @@ std::string	getContentType(const std::string& target, std::map<std::string, std:
 
 std::string	getDate( void )
 {
-    char buffer[100];
+	char buffer[100];
 
 	std::time_t now = std::time(0);
-    std::tm* gmt = std::gmtime(&now);
+	std::tm* gmt = std::gmtime(&now);
 
-    std::strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", gmt);
+	std::strftime(buffer, 100, "%a, %d %b %Y %H:%M:%S GMT", gmt);
 	return (buffer);
 }
 
@@ -202,8 +176,7 @@ bool	allDigit(std::string str)
 
 std::string		generateRandomString( void )
 {
-	std::string alphaNum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-	srand(static_cast<size_t>(time(0)));
+	static const char alphaNum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 	std::string random;
 	for (int i = 0; i < 10; i++)
@@ -213,26 +186,72 @@ std::string		generateRandomString( void )
 	return (random);
 }
 
-std::string		toHex(size_t num)
+std::string capitalize(const std::string& input)
 {
-	std::stringstream ss;
+	std::string output = input;
 
-	ss << std::uppercase << std::hex << num;
-	return (ss.str());
-}
-
-void	capitalize(std::string& word)
-{
+	static const char alpha[] = "abcdefghijklmnopqrstuvwxyz";
 	size_t pos = 0;
-	static char alpha[53] = "abcdefghijklmnopqrstuvwxyz";
 
-	while ((pos = word.find_first_of(alpha, pos)) != std::string::npos)
+	while ((pos = output.find_first_of(alpha, pos)) != std::string::npos)
 	{
-		word[pos++] -= 32;
-		pos = word.find_first_not_of(alpha, pos);
+		output[pos++] -= 32;
+		pos = output.find_first_not_of(alpha, pos);
 	}
+	
+	return (output);
 }
 
+inline std::string toHex(size_t size)
+{
+	if (size == 0)
+		return "0";
+	
+	std::string	result;
+	static char base16[] = "0123456789ABCDEF";
+	
+
+	while (size > 0)
+	{
+		result = base16[size % 16] + result;
+		size /= 16;
+	}
+	
+	return (result);
+}
+
+std::string buildChunk(const char* data, size_t size)
+{
+	if (!data || size == 0)
+		return "0\r\n\r\n";
+	
+	std::string hex = toHex(size);
+	std::string result;
+
+	result.reserve(hex.length() + 2 + size + 2);
+	
+	result.append(hex);
+	result.append("\r\n", 2);
+	result.append(data, size);
+	result.append("\r\n", 2);
+	
+	return (result);
+}
+
+// std::string	buildChunk(const char *data, size_t size) // error
+// {
+// 	return (toHex(size) + "\r\n" + std::string(data, size) + "\r\n");
+// }
+
+/////////////////////////////////////////////////////
+void printMap(std::map<std::string, std::string>& map)
+{
+	std::cout << "************************************" << std::endl;
+	std::map<std::string, std::string>::iterator it;
+	for (it = map.begin(); it != map.end(); it++)
+		std::cout << it->first << "::" << it->second << std::endl;
+	std::cout << "************************************" << std::endl;
+}
 // #include <arpa/inet.h>
 // int main() {
 // 	unsigned int my = parseIPv4("192.168.1.1");

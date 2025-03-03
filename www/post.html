@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POST Request Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input {
+            padding: 8px;
+            width: 200px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h2>User Information Form</h2>
+    
+    <div class="form-group">
+        <label for="name">Name:</label><br>
+        <input type="text" id="name" placeholder="Enter your name">
+    </div>
+
+    <div class="form-group">
+        <label for="age">Age:</label><br>
+        <input type="number" id="age" placeholder="Enter your age">
+    </div>
+
+    <button onclick="sendPostRequest()">Submit</button>
+
+    <script>
+        function sendPostRequest() {
+            const name = document.getElementById('name').value;
+            const age = document.getElementById('age').value;
+
+            if (!name || !age) {
+                alert('Please fill in both fields');
+                return;
+            }
+
+            const data = {
+                name: name,
+                age: age
+            };
+
+            fetch('http://localhost:8080/cgi-bin/post.py', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Success:', data);
+                alert('Data submitted successfully!');
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('There was a problem with the submission.');
+            });
+        }
+    </script>
+</body>
+</html>

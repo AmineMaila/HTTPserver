@@ -6,7 +6,7 @@
 /*   By: nazouz <nazouz@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/24 20:20:43 by nazouz            #+#    #+#             */
-/*   Updated: 2025/02/02 13:19:34 by nazouz           ###   ########.fr       */
+/*   Updated: 2025/03/01 18:45:17 by nazouz           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,7 @@ bool				Config::parseConfigFile() {
 }
 
 bool				Config::storeConfigFileInVector() {
+	size_t				pos;
 	std::string			line;
 
 	while (std::getline(configFile, line)) {
@@ -44,6 +45,8 @@ bool				Config::storeConfigFileInVector() {
 			continue;
 		if (line[0] == '#')
 			continue;
+		if ((pos = line.find('#')) != std::string::npos)
+			line = line.substr(0, pos);
 		configFileVector.push_back(line);
 		if (configFile.eof())
 			break;
@@ -58,13 +61,13 @@ bool				Config::basicBlocksCountCheck() {
 	int					locationEnd = 0;
 	
 	for (size_t i = 0; i < configFileVector.size(); i++) {
-		if (configFileVector[i] == "[server]")
+		if (configFileVector[i] == "[SERVER]")
 			serverStart++;
-		else if (configFileVector[i] == "[/server]")
+		else if (configFileVector[i] == "[/SERVER]")
 			serverEnd++;
-		else if (configFileVector[i] == "[location]")
+		else if (configFileVector[i] == "[LOCATION]")
 			locationStart++;
-		else if (configFileVector[i] == "[/location]")
+		else if (configFileVector[i] == "[/LOCATION]")
 			locationEnd++;
 	}
 	if (!serverStart || !serverEnd)
@@ -79,10 +82,10 @@ std::pair<int, int>		Config::getBlockEndIndex(int blockStart, const std::string 
 	std::string				endBlock;
 	std::pair<int, int>		toReturn(blockStart, -1);
 	
-	if (startBlockStr == "[server]")
-		endBlock = "[/server]";
-	else if (startBlockStr == "[location]")
-		endBlock = "[/location]";
+	if (startBlockStr == "[SERVER]")
+		endBlock = "[/SERVER]";
+	else if (startBlockStr == "[LOCATION]")
+		endBlock = "[/LOCATION]";
 
 	for (; i < configFileVector.size(); i++) {
 		if (configFileVector[i] == endBlock) {
@@ -95,10 +98,10 @@ std::pair<int, int>		Config::getBlockEndIndex(int blockStart, const std::string 
 
 void				Config::fillServerBlocksIndexes() {
 	for (size_t i = 0; i < configFileVector.size(); i++) {
-		if (configFileVector[i] == "[server]")
-			serverBlocksIndexes.push_back(getBlockEndIndex(i, "[server]"));
-		else if (configFileVector[i] == "[location]")
-			locationBlocksIndexes.push_back(getBlockEndIndex(i, "[location]"));
+		if (configFileVector[i] == "[SERVER]")
+			serverBlocksIndexes.push_back(getBlockEndIndex(i, "[SERVER]"));
+		else if (configFileVector[i] == "[LOCATION]")
+			locationBlocksIndexes.push_back(getBlockEndIndex(i, "[LOCATION]"));
 	}
 }
 
@@ -112,12 +115,14 @@ bool				Config::locationBlockIsInsideAServerBlock(int locationStart, int locatio
 }
 
 bool				Config::validateBlocksIndexes() {
-	int			a, b, c, d;
+	int			a = 0, b = 0, c = 0, d = 0;
 	for (size_t i = 0; i < serverBlocksIndexes.size() - 1; i++) {
 		a = serverBlocksIndexes[i].first;
 		b = serverBlocksIndexes[i].second;
 		c = serverBlocksIndexes[i + 1].first;
 		d = serverBlocksIndexes[i + 1].second;
+		if (b + 1 != c)
+			return false;
 		if (a == -1 || b == -1 || c == -1 || d == -1)
 			return false;
 		if (a < b && b < c && c < d)

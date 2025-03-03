@@ -15,11 +15,7 @@ public:
 
 	void	addVServer(ServerConfig& server);
 
-	// server handler only handles read events
-	int		getFd() const
-	{
-		return (socket);
-	}
+	int		getFd() const;
 	void	handleEvent(uint32_t events);
 
 private:

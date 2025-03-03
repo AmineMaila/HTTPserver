@@ -1,23 +1,37 @@
-add timeouts
-2 requests can be sent at the same time
-localhost should work on the config file
-check comments
-test range 0-0 | 1-1
+add CGI timeouts
 
-transfer encoding overrides content length
-
-add timeouts
-2 requests can be sent at the same time
-localhost should work on the config file
 check comments
-test range 0-0 | 1-1
+
 trailing / at the end of the uri (file)
-rje3 stdin stdout kima kano mora child kill
 
-reuse port error
+benchmark siwtch vs fn ptr
 
-html text in the config file
+webserv should compile using C++ not G++
 
-error page directive is not absolute path
+add needed headers to CGI
 
-comments in config file
+test decode url
+
+MAJOR HEAP USE AFTER FREE ila cgi tdeleta w client dkhel l response
+
+verify atoi
+
+a 404 when accessing /cgi-bin/ and then from autoindex acessing /cgi-bin/login.html, the new request doesn't append the new requested file from autoindex
+
+cgitempfilestream should be removed, its removed now, we should test for bugs
+
+root directive isFile // check my comment in URI.cpp
+
+i should fix processCGIRequestRawBody()
+
+for mkstemp tmpnam, mkstemp is not allowed
+
+strtoul is not safe, we should find an alternative
+
+if CGI script fails
+
+check alias
+
+we need to check all those char* used in strtoul cuz they are causing stack-use-after-scope
+
+unordered map

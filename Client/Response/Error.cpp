@@ -1,21 +1,54 @@
 #include "Error.hpp"
-#include "Response.hpp"
 
-FatalError::FatalError(const char *msg) : msg(msg) {}
+ErrorPage::~ErrorPage() {}
 
-const char *FatalError::what() const throw()
+ErrorPage::ErrorPage(Code& e, int& socket, RequestData	*data) : AResponse(socket, data), status(e)
 {
-	return (msg);
+	statusCodes.insert(std::make_pair(301, "Moved Permanently"));
+	statusCodes.insert(std::make_pair(302, "Found"));
+	statusCodes.insert(std::make_pair(303, "See Other"));
+	statusCodes.insert(std::make_pair(307, "Temporary Redirect"));
+	statusCodes.insert(std::make_pair(308, "Permanent Redirect"));
+	statusCodes.insert(std::make_pair(400, "Bad Request"));
+	statusCodes.insert(std::make_pair(403, "Forbidden"));
+	statusCodes.insert(std::make_pair(404, "Not Found"));
+	statusCodes.insert(std::make_pair(405, "Method Not Allowed"));
+	statusCodes.insert(std::make_pair(413, "Payload Too Large"));
+	statusCodes.insert(std::make_pair(414, "URI Too Long"));
+	statusCodes.insert(std::make_pair(415, "Unsupported Media Type"));
+	statusCodes.insert(std::make_pair(416, "Range Not Satisfiable"));
+	statusCodes.insert(std::make_pair(431, "Request Header Fields Too Large"));
+	statusCodes.insert(std::make_pair(500, "Internal Server Error"));
+	statusCodes.insert(std::make_pair(501, "Not Implemented"));
+	// statusCodes.insert(std::make_pair(504, "Gateway Timeout"));
+	statusCodes.insert(std::make_pair(505, "HTTP Version Not Supported"));
 }
 
-CGIRedirectException::~CGIRedirectException() throw() {}
-
-CGIRedirectException::CGIRedirectException(const std::string& location)
+void	ErrorPage::readBody()
 {
-	this->location = location;
+	char buf[SEND_BUFFER_SIZE] = {0};
+	ssize_t bytesRead = bodyFile.read(buf, SEND_BUFFER_SIZE).gcount();
+	if (bytesRead == -1)
+	{
+		throw(Disconnect("[CLIENT-" + _toString(socket) + "] read: " + strerror(errno)));
+	}
+	else if (bytesRead > 0)
+	{
+		if (bodyFile.peek() == EOF)
+		{
+			nextState = DONE;
+		}
+		std::cout << YELLOW << "======[READ DATA OF SIZE " << bytesRead << "]======" << RESET << std::endl;
+		buffer.reserve(buffer.size() + bytesRead);
+		buffer.append(buf, bytesRead);
+		if ((this->*sender)() == true)
+			state = nextState;
+		else
+			state = WRITE;
+	}
 }
 
-void	Response::generateErrorPage(int& status)
+void	ErrorPage::generateHeaders()
 {
 	headers.clear();
 	headers.append("\r\nServer: webserv/1.0");
@@ -25,33 +58,32 @@ void	Response::generateErrorPage(int& status)
 	else
 		headers.append("\r\nConnection: close");
 
+	if (!status.location.empty())
+		headers.append("\r\nLocation: " + status.location);
+
 	try
 	{
-		// if (!reqCtx->_Config)
-		// 	throw(status);
-	
-		std::map<int, std::string>::iterator error_page = reqCtx->_Config->error_pages.find(status);
+		std::map<size_t, std::string>::iterator error_page = reqCtx->_Config->error_pages.find(status.status);
 		if (error_page == reqCtx->_Config->error_pages.end())
 			throw(status);
 
-		fillRequestData(error_page->second, *reqCtx);
+		reqCtx->URI = error_page->second;
+		resolveURI(*reqCtx);
 		bodyFile.open(reqCtx->fullPath.c_str());
 		if (!bodyFile.is_open())
-			throw(500);
+			throw(Code(500));
 
 		headers.append("\r\nContent-Type: " + getContentType(reqCtx->fullPath, mimeTypes));
 		headers.append("\r\nContent-Length: " + _toString(fileLength(reqCtx->fullPath)));
 		headers.append("\r\n\r\n");
-		nextState = READ; // remove it is obselete
 	}
-	catch (int& newStatus)
+	catch (Code& newCode)
 	{
-		status = newStatus; // maybe remove
 		buffer = "<!DOCTYPE html>\n"
 				"<html>\n"
-				"<head><title> " + _toString(newStatus) + " " + statusCodes[newStatus] + " </title></head>\n"
+				"<head><title> " + _toString(newCode.status) + " " + statusCodes[newCode.status] + " </title></head>\n"
 				"<body>\n"
-				"<center><h1> " + _toString(newStatus) + " " + statusCodes[newStatus] + " </h1></center>\n"
+				"<center><h1> " + _toString(newCode.status) + " " + statusCodes[newCode.status] + " </h1></center>\n"
 				"<hr><center>webserv/1.0</center>\n"
 				"</body>\n"
 				"</html>";
@@ -61,7 +93,29 @@ void	Response::generateErrorPage(int& status)
 		headers.append(buffer);
 		nextState = DONE;
 	}
+	headers.insert(0, "HTTP/1.1 " + _toString(status.status) + " " + getCodeDescription(status.status));
+	if ((this->*sender)() == true)
+		state = nextState;
+	else
+		state = WRITE;
+}
 
-	headers.insert(0, "HTTP/1.1 " + _toString(status) + " " + statusCodes[status]) ; // status line
-	// std::cout << headers << std::endl;
+int	ErrorPage::respond()
+{
+	switch (state)
+	{
+		case HEADERS:
+			generateHeaders();
+			break;
+		case READ:
+			readBody();
+			break;
+		case WRITE:
+			if ((this->*sender)() == true)
+				state = nextState;
+			break;
+		case DONE:
+			return (1);
+	}
+	return (0);
 }

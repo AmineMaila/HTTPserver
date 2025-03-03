@@ -1,51 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic HTML Web Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background-color: #333;
-            color: white;
-            padding: 10px 0;
-            text-align: center;
-        }
-        main {
-            padding: 20px;
-            text-align: center;
-        }
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 10px 0;
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>Welcome to My Basic Web Page</h1>
-    </header>
-
-    <main>
-        <p>This is a simple example of a basic HTML web page.</p>
-        <!-- <img src="https://via.placeholder.com/150" alt="Placeholder Image"> -->
-    </main>
-
-    <footer>
-        <p>&copy; 2023 My Basic Web Page</p>
-    </footer>
-
-</body>
+<html>
+	<head>
+		<title>Webserv</title>
+		<link rel="stylesheet" href="./styles.css">
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+	</head>
+	<body>
+		<div class="container">
+			<div class="intro">
+				<h1 class="title">Webserv 1.O</h1>
+				<h2 class="title-2">ONE SERVER IS NOT ENOUGH, WE NEED <span id="more">MORE!</span></h2>
+			</div>
+			<div class="table-1">
+				<h2>Description</h2>
+				<div class="description">
+					<p>
+						Webserv is a software that processes requests from clients (typically web browsers) and serves web content, such as HTML pages, images, videos, and other resources. It communicates using the HTTP (Hypertext Transfer Protocol).
+					</p>
+				</div>
+			</div>
+			<div class="table-1">
+				<h2>How it works?</h2>
+				<div class="description">
+					<p>
+						Client Request - A client (typically a web browser) sends an HTTP request to Webserv 1.O
+					</p>
+				</div>
+				<div class="description">
+					<p>
+						Processing - Webserv 1.O interprets the request, locates the requested resource, or forwards the request to an application (CGI, PHP, Python scripts).
+					</p>
+				</div>
+				<div class="description">
+					<p>
+						Response - Webserv 1.O returns the requested resource or an error message (ex 404 Not Found) to the client.
+					</p>
+				</div>
+			</div>
+			<div class="table-1">
+				<h2>Features</h2>
+				<div class="used-services">
+					<p>Customizable Server Config</p>
+					<!-- <p>Supports GET POST DELETE HTTP Methods</p> -->
+					<p>Supports</p>
+					<p>GET</p>
+					<p>POST</p>
+					<p>DELETE</p>
+					<p>HTTP Methods</p>
+					<p>File Upload</p>
+					<p>Multiple CGI</p>
+					<p>Python</p>
+					<p>PHP</p>
+					<p>Bash</p>
+					<p>Cookies</p>
+					<p>Session Management</p>
+				</div>
+			</div>
+			<div class="table-1">
+				<h2>Wanna test something?</h2>
+				<div class="used-services">
+					<p>Read a text file</p>
+					<p>Directory Listing</p>
+					<p>Upload a file</p>
+					<p>Watch a video</p>
+					<p>Login</p>
+				</div>
+			</div>
+		</div>
+	</body>
 </html>

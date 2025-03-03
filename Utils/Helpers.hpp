@@ -7,29 +7,50 @@
 #include <cstdlib>
 #include <ctime>
 #include <unistd.h>
+#include <string>
+#include <vector>
 #include <sys/stat.h>
 #include <map>
 
+class Disconnect : public std::exception
+{
+public:
+	virtual ~Disconnect() throw() {}
+	Disconnect(std::string msg) : msg(msg) {}
 
-// struct Directives
-// {
-// 	std::string 								root;
-// 	std::string 								alias;
-// 	bool 										autoindex;
-// 	std::string 								upload_store;
-// 	std::string 								cgi_pass;
-// 	std::vector<std::string>					index;
-// 	std::vector<std::string>					methods;
-// 	std::vector<std::string>					cgi_ext;
-// 	std::pair<int, std::string> 				redirect;
-// 	std::vector<std::pair<int, std::string> >	error_page;
-// };
+	virtual const char *what() const throw() { return (msg.c_str()); }
 
-std::string		stringtrim(const std::string& str, const std::string& set);
+private:
+	std::string	msg;
+};
+
+class CGIRedirect : public std::exception
+{
+public:
+	virtual ~CGIRedirect() throw() {}
+	CGIRedirect(std::string location) : location(location) {}
+
+	std::string	location;
+};
+
+class Code : public std::exception
+{
+public:
+	virtual ~Code() throw() {}
+	Code(int status) : status(status) {}
+	Code(int status, std::string location) : status(status), location(location) {}
+
+	const int 			status;
+	const std::string	location;
+};
+
+// void			split(const std::string& str, const char *set, std::vector<std::string>& result);
+std::vector<std::string>	split(const std::string& tosplit, const std::string& charset);
+std::string		stringtrim(const std::string& str, const char *set);
 bool			isHexa(const std::string& num);
 std::string		stringtolower(std::string str);
 bool			stringIsDigit(const std::string& str);
-int				hexToInt(const std::string& num);
+ssize_t			htoi(const std::string& num);
 unsigned int	parseIPv4(const std::string& ipAddress);
 std::string		getDate( void );
 std::string		getDate( void );
@@ -41,7 +62,9 @@ std::string		_toString(unsigned long num);
 bool			rootJail(const std::string& uri);
 std::string		generateRandomString( void );
 bool			allDigit(std::string str);
-void			capitalize(std::string& word);
+std::string		capitalize(const std::string& word);
 std::string		toHex(size_t num);
+std::string		buildChunk(const char *data, size_t size); // error
+void printMap(std::map<std::string, std::string>& map);
 
 #endif

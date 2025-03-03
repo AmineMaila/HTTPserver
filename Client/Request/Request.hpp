@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Request.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
+/*   By: nazouz <nazouz@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/05 17:46:13 by nazouz            #+#    #+#             */
-/*   Updated: 2025/02/06 18:35:10 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/03/01 18:41:03 by nazouz           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,8 @@
 # include <string.h>
 # include <map>
 # include <vector>
+# include <algorithm>
+// # include <cstdlib>
 
 # include <fcntl.h>
 # include <sys/socket.h>
@@ -26,38 +28,24 @@
 # include "../../Utils/Helpers.hpp"
 # include "../../_Config/Config.hpp"
 
-# define REQUEST_BUFFER_SIZE 16000
+# define RECV_BUFFER_SIZE 16384
+
+# ifndef CRLF
+# define CRLF "\r\n"
+# endif
+# ifndef DOUBLE_CRLF
+# define DOUBLE_CRLF "\r\n\r\n"
+# endif
 
 enum e_parsingState {
-	PARSING_INIT,		// 0
-	HEADERS_RECEIVED,	// 1
-	HEADERS_FINISHED,	// 2
-	BODY_RECEIVED,		// 3
-	BODY_FINISHED,		// 4
-	PARSING_FINISHED	// 5
+	RECV,			// 0
+	RESPOND,		// 1
+	FORWARD_CGI		// 2
 };
 
-enum RangeState
-{
-	NEXT,
-	GET
-};
-
-struct Range
-{
-	std::pair<int, int> range;
-	std::string			header;
-	size_t				rangeLength;
-	bool				headerSent;
-	Range() : headerSent(false) {}
-};
-
-struct RangeData
-{
-	std::vector<Range>				ranges;
-	std::vector<Range>::iterator	current;
-	std::string						boundary;
-	enum RangeState					rangeState;
+enum e_reqType {
+	REGULAR,
+	CGI
 };
 
 typedef struct								RequestData {
@@ -79,6 +67,8 @@ typedef struct								RequestData {
 	std::string								pathInfo;
 	std::string								scriptName;
 	std::string								cgiIntrepreter;
+	// std::fstream							CGITempFilestream;
+	std::string								CGITempFilename; // i.e /path/to/tempfile
 	
 	/*					  RESPONSE   				*/
 	std::string								fullPath;
@@ -90,56 +80,10 @@ typedef struct								RequestData {
 	std::string								matchingLocation;
 
 	std::map<std::string, std::string>		Headers;
-	struct RangeData						rangeData;
 	Directives								*_Config; // ptr
 	
-	RequestData() : isCGI(false), isDir(false), isRange(false), keepAlive(true), StatusCode(200) {}
+	RequestData() : isCGI(false), isDir(false), isRange(false), keepAlive(true), StatusCode(200), contentLength(0) {}
 }											RequestData;
-
-// typedef	struct								RequestData {
-//     // int                                    status;
-//     // std::string                            method;
-//     // std::string                            uri;
-//     // std::string                            path;
-//     // std::string                            queryString;
-//     // std::string                            pathInfo;
-//     // std::string                            scriptName;
-//     // bool                                	isCGI;
-//     // bool                                	isDir;
-//     // bool                                	isRange;
-//     // bool                                	keepAlive;
-//     // RangeData                    			rangeData;
-//     // std::string                            content_type;
-//     // size_t                                content_length;
-//     // std::map<std::string, std::string>    requestHeaders;
-//     // Directives                            config;
-// };
-
-// typedef struct								s_requestline {
-// 	std::string								rawRequestLine;
-// 	std::string								method;
-// 	std::string								uri;
-// 	std::string								httpversion;
-// 	// std::string								query;
-// }											t_requestline;
-
-// typedef struct								s_header {
-// 	std::vector<std::string>				rawHeaders;
-// 	std::map<std::string, std::string>		headersMap;
-// 	std::string								host;
-// 	std::string								contentType;
-// 	std::string								connection;
-// 	std::string								transferEncoding;
-// 	// std::string								contentLength;
-// }											t_header;
-
-// typedef struct								s_body {
-// 	std::string								rawBody;
-// 	std::string								boundaryBegin;
-// 	std::string								boundaryEnd;
-// 	int										bodySize;
-// 	int										contentLength;
-// }											t_body;
 
 typedef	struct								RequestRaws {
 	std::string								rawRequestLine;
@@ -148,8 +92,12 @@ typedef	struct								RequestRaws {
 	
 	std::string								boundaryBegin;
 	std::string								boundaryEnd;
-	int										bodySize;
-	int										contentLength;
+	size_t									rawBodySize;
+	size_t									totalBodySize;
+
+	std::map<std::string, std::string>		mimeTypes;
+
+	RequestRaws() : rawBodySize(0), totalBodySize(0) {}
 }											RequestRaws;
 
 
@@ -159,7 +107,8 @@ class Request {
 		std::string						buffer;
 		int								bufferSize;
 
-		std::vector<int>				files;
+		// std::vector<int>				files;
+		std::ofstream					fileUploader;
 
 		/*			PARSING STRUCTURES			*/
 		RequestData						_RequestData;
@@ -172,8 +121,9 @@ class Request {
 		bool							isMultipart;
 
 		/*				STATE FLAGS				*/
-		e_parsingState					pState;
-		int								statusCode;
+		bool							headersFinished;
+		bool							bodyFinished;
+		e_parsingState					RequestState;
 	
 	public:
 		Request(std::vector<ServerConfig>& vServers);
@@ -181,70 +131,55 @@ class Request {
 		Request(const Request& rhs);
 		Request&	operator=(const Request& rhs);
 
-		int							receiveRequest(int socket);
-		bool						printParsedRequest();
+		int							feedRequest(char *recvBuffer, int recvBufferSize);
+		// bool						printParsedRequest();
 
-		bool						bufferContainHeaders();
 		bool						bufferContainChunk();
 		std::string					extractHeadersFromBuffer();
-		bool						headerExists(const std::string& key);
-		void						feedRequest(char *recvBuffer, int bufferSize);
+		// void						feedRequest(char *recvBuffer, int bufferSize);
 
-		bool						parseControlCenter();
-		void						setRequestState();
-		bool						parseRequestLineAndHeaders();
-		bool						storeHeadersInVector();
-		bool						parseRequestLine();
-		bool						parseHeaders();
-		bool						parseRequestBody();
-		bool						decodeChunkedBody();
-		bool						processRequestRawBody();
-		bool						processMultipartFormData();
-		bool						processMultipartHeaders();
-		bool						processMultipartData();
-		bool						processBinaryBody();
-		bool						parseLengthBody();
-		bool						validateRequestHeaders();
+		int							parseControlCenter(char *recvBuffer, int recvBufferSize);
+		void						parseRequestLineAndHeaders();
+		void						parseRequestLine();
+		void						parseRequestHeaders();
+		void						parseRequestBody();
+		void						decodeChunkedBody();
+		void						processRegularRequestRawBody();
+		void						processCGIRequestRawBody();
+		void						processMultipartFormData();
+		void						processMultipartHeaders();
+		void						processMultipartData();
+		void						processBinaryBody();
+		void						parseLengthBody();
+		void						storeBody( void );
+		void						uploadBody( void );
+		
+		void						validateRequestHeaders();
 
-		void						putRequestBodyInFile();
+		// void						putRequestBodyInFile();
 
-		std::string&				getBuffer() { return buffer; };
+		std::string					getBuffer() const { return buffer; };
 		void						setBuffer(const std::string& newValue) { this->buffer = newValue; };
+		void						setFullPath(const std::string& path) { _RequestData.fullPath = path; }
 		RequestData					*getRequestData() { return &_RequestData; };
 
-		int&						getStatusCode();
-		std::vector<std::string>&	getRawRequest();
-		// t_body&						getBodySt();
-		// t_header&					getHeaderSt();
-		// t_requestline&				getRequestLineSt();
-		e_parsingState				getParsingState() { return pState; } ;
-
-		void						setStatusCode(int code);
-		bool						decodeURI();
-		bool						isValidFieldLine(const std::string& fieldline);
-		bool						isValidMethod(const std::string& method);
-		bool						isValidURI(const std::string& uri);
-		bool						isValidHTTPVersion(const std::string& httpversion);
-		
-		void						processRequestData();
-		void						decodeURL(std::string URL);
-		void						resolveRootAlias(std::string& requestedResource);
-		void						setQueryString(std::string& requestedResource);
-		void						setRequestedResourceType(std::string& requestedResource);
-		void						handleDirectoryResource();
-		void						handleFileResource(const std::string& path_info);
-		bool						extensionIsCGI(const std::string& extension);
+		bool						headerExists(const std::string& key);
+		bool						isCriticalHeader(const std::string& key);
+		void						decodeURI();
+		void						isValidMethod();
+		void						isValidURI();
+		void						isValidHTTPVersion();
 		
 		void						setMatchingConfig();
 		ServerConfig&				getMatchingServer();
 };
 
-void			fillRequestData(const std::string URI, RequestData& _RequestData);
+void			resolveURI(RequestData& _RequestData);
+void			resolveAbsPath(RequestData& _RequestData);
 
 bool			stringIsDigit(const std::string& str);
 std::string		stringtrim(const std::string& str, const std::string& set);
 std::string		stringtolower(std::string str);
 bool			isHexa(const std::string& num);
-int				hexToInt(const std::string& num);
 
 #endif
