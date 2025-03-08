@@ -105,7 +105,7 @@ void	Request::setMatchingConfig()
 	if (requestData.matchingLocation.empty())
 		requestData.config = &matchingServer.ServerDirectives;
 	else
-		&matchingServer.Locations.find(requestData.matchingLocation)->second;
+		requestData.config = &matchingServer.Locations.find(requestData.matchingLocation)->second;
 	
 	if (std::find(requestData.config->methods.begin(), requestData.config->methods.end(), requestData.Method) == requestData.config->methods.end())
 		throw Code(405);
