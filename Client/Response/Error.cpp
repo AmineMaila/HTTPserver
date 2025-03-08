@@ -2,7 +2,7 @@
 
 ErrorPage::~ErrorPage() {}
 
-ErrorPage::ErrorPage(Code& e, int& socket, RequestData	*data) : AResponse(socket, data), status(e)
+ErrorPage::ErrorPage(Code e, int& socket, RequestData	*data) : AResponse(socket, data), status(e)
 {
 	statusCodes.insert(std::make_pair(301, "Moved Permanently"));
 	statusCodes.insert(std::make_pair(302, "Found"));
@@ -13,6 +13,7 @@ ErrorPage::ErrorPage(Code& e, int& socket, RequestData	*data) : AResponse(socket
 	statusCodes.insert(std::make_pair(403, "Forbidden"));
 	statusCodes.insert(std::make_pair(404, "Not Found"));
 	statusCodes.insert(std::make_pair(405, "Method Not Allowed"));
+	statusCodes.insert(std::make_pair(409, "Conflict"));
 	statusCodes.insert(std::make_pair(413, "Payload Too Large"));
 	statusCodes.insert(std::make_pair(414, "URI Too Long"));
 	statusCodes.insert(std::make_pair(415, "Unsupported Media Type"));
@@ -20,7 +21,8 @@ ErrorPage::ErrorPage(Code& e, int& socket, RequestData	*data) : AResponse(socket
 	statusCodes.insert(std::make_pair(431, "Request Header Fields Too Large"));
 	statusCodes.insert(std::make_pair(500, "Internal Server Error"));
 	statusCodes.insert(std::make_pair(501, "Not Implemented"));
-	// statusCodes.insert(std::make_pair(504, "Gateway Timeout"));
+	statusCodes.insert(std::make_pair(503, "Service Unavailable"));
+	statusCodes.insert(std::make_pair(504, "Gateway Timeout"));
 	statusCodes.insert(std::make_pair(505, "HTTP Version Not Supported"));
 }
 
@@ -30,41 +32,37 @@ void	ErrorPage::readBody()
 	ssize_t bytesRead = bodyFile.read(buf, SEND_BUFFER_SIZE).gcount();
 	if (bytesRead == -1)
 	{
-		throw(Disconnect("[CLIENT-" + _toString(socket) + "] read: " + strerror(errno)));
+		throw(Disconnect("\tClient " + _toString(socket) + " : read: " + strerror(errno)));
 	}
 	else if (bytesRead > 0)
 	{
 		if (bodyFile.peek() == EOF)
-		{
 			nextState = DONE;
-		}
-		std::cout << YELLOW << "======[READ DATA OF SIZE " << bytesRead << "]======" << RESET << std::endl;
-		buffer.reserve(buffer.size() + bytesRead);
 		buffer.append(buf, bytesRead);
 		if ((this->*sender)() == true)
 			state = nextState;
 		else
 			state = WRITE;
 	}
+	else
+		state = DONE;
 }
 
 void	ErrorPage::generateHeaders()
 {
-	headers.clear();
+	errno = 0;
+	headers.reserve(1024);
 	headers.append("\r\nServer: webserv/1.0");
 	headers.append("\r\nDate: " + getDate());
-	if (reqCtx->keepAlive)
-		headers.append("\r\nConnection: keep-alive");
-	else
-		headers.append("\r\nConnection: close");
 
+	headers.append("\r\nConnection: close");
 	if (!status.location.empty())
 		headers.append("\r\nLocation: " + status.location);
 
 	try
 	{
-		std::map<size_t, std::string>::iterator error_page = reqCtx->_Config->error_pages.find(status.status);
-		if (error_page == reqCtx->_Config->error_pages.end())
+		std::map<size_t, std::string>::iterator error_page = reqCtx->config->error_pages.find(status.status);
+		if (error_page == reqCtx->config->error_pages.end())
 			throw(status);
 
 		reqCtx->URI = error_page->second;
@@ -94,6 +92,7 @@ void	ErrorPage::generateHeaders()
 		nextState = DONE;
 	}
 	headers.insert(0, "HTTP/1.1 " + _toString(status.status) + " " + getCodeDescription(status.status));
+	reqCtx->statusCode = status.status;
 	if ((this->*sender)() == true)
 		state = nextState;
 	else
@@ -118,4 +117,10 @@ int	ErrorPage::respond()
 			return (1);
 	}
 	return (0);
+}
+
+std::ostream& ErrorPage::operator<<(std::ostream& os) const
+{
+	os << status.status;
+	return (os);
 }

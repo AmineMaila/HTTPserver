@@ -1,73 +1,167 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>Webserv</title>
-		<link rel="stylesheet" href="./styles.css">
-		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
-	</head>
-	<body>
-		<div class="container">
-			<div class="intro">
-				<h1 class="title">Webserv 1.O</h1>
-				<h2 class="title-2">ONE SERVER IS NOT ENOUGH, WE NEED <span id="more">MORE!</span></h2>
-			</div>
-			<div class="table-1">
-				<h2>Description</h2>
-				<div class="description">
-					<p>
-						Webserv is a software that processes requests from clients (typically web browsers) and serves web content, such as HTML pages, images, videos, and other resources. It communicates using the HTTP (Hypertext Transfer Protocol).
-					</p>
-				</div>
-			</div>
-			<div class="table-1">
-				<h2>How it works?</h2>
-				<div class="description">
-					<p>
-						Client Request - A client (typically a web browser) sends an HTTP request to Webserv 1.O
-					</p>
-				</div>
-				<div class="description">
-					<p>
-						Processing - Webserv 1.O interprets the request, locates the requested resource, or forwards the request to an application (CGI, PHP, Python scripts).
-					</p>
-				</div>
-				<div class="description">
-					<p>
-						Response - Webserv 1.O returns the requested resource or an error message (ex 404 Not Found) to the client.
-					</p>
-				</div>
-			</div>
-			<div class="table-1">
-				<h2>Features</h2>
-				<div class="used-services">
-					<p>Customizable Server Config</p>
-					<!-- <p>Supports GET POST DELETE HTTP Methods</p> -->
-					<p>Supports</p>
-					<p>GET</p>
-					<p>POST</p>
-					<p>DELETE</p>
-					<p>HTTP Methods</p>
-					<p>File Upload</p>
-					<p>Multiple CGI</p>
-					<p>Python</p>
-					<p>PHP</p>
-					<p>Bash</p>
-					<p>Cookies</p>
-					<p>Session Management</p>
-				</div>
-			</div>
-			<div class="table-1">
-				<h2>Wanna test something?</h2>
-				<div class="used-services">
-					<p>Read a text file</p>
-					<p>Directory Listing</p>
-					<p>Upload a file</p>
-					<p>Watch a video</p>
-					<p>Login</p>
-				</div>
-			</div>
-		</div>
-	</body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom C++ HTTP Server</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            color: #333;
+            background-color: #fff;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eaecef;
+        }
+
+        h1 {
+            font-weight: 500;
+            color: #2d2d2d;
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+
+        section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #eaecef;
+        }
+
+        h2 {
+            font-weight: 500;
+            color: #444;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        ul, dl {
+            margin: 0;
+            padding-left: 1.2rem;
+        }
+
+        dt {
+            font-weight: 500;
+            color: #444;
+            margin-top: 0.8rem;
+        }
+
+        dd {
+            margin-left: 1rem;
+            color: #666;
+        }
+
+        code {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9em;
+            background-color: #f1f3f5;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            color: #d6336c;
+        }
+
+        pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            overflow-x: auto;
+            border-radius: 4px;
+            border: 1px solid #eaecef;
+            font-size: 0.9em;
+            line-height: 1.5;
+            margin: 1.5rem 0;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            color: #333;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #eaecef;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Custom C++ HTTP Server</h1>
+        <p>high-performance web server implementation</p>
+    </header>
+
+    <section>
+        <h2>Server Overview</h2>
+        <ul>
+            <li>HTTP/1.1 compliant architecture</li>
+            <li>CGI/1.1 specification support</li>
+            <li>Epoll-based I/O multiplexing</li>
+            <li>Comprehensive error code handling</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Technical Specifications</h2>
+        <dl>
+            <dt>Core Architecture</dt>
+            <dd>Event-driven model using epoll</dd>
+            
+            <dt>Core Components</dt>
+            <dd>TCP socket management, I/O multiplexing, URI routing, Server-side script execution</dd>
+
+            <dt>Language Standard</dt>
+            <dd>C++98</dd>
+            
+            <dt>Concurrency</dt>
+            <dd>Single-process with non-blocking I/O</dd>
+            
+            <dt>Error Handling</dt>
+            <dd>Implements 4xx client and 5xx server error codes</dd>
+            
+        </dl>
+    </section>
+
+    <section>
+        <h2>Example Exchange</h2>
+        <pre><code>GET /cgi-bin/script.py HTTP/1.1
+Host: localhost:8080
+User-Agent: curl/7.68.0</code></pre>
+
+        <pre><code>HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 32
+
+&lt;p&gt;CGI execution successful&lt;/p&gt;</code></pre>
+    </section>
+
+    <section>
+        <h2>Security Features</h2>
+        <ul>
+            <li>Input sanitization pipelines</li>
+            <li>Path normalization checks</li>
+            <li>Request size limitations</li>
+            <li>Strict header parsing</li>
+        </ul>
+    </section>
+
+    <footer>
+        <p>© 2025 Custom HTTP Server Implementation</p>
+        <p>Event-driven architecture · Standard C++98</p>
+    </footer>
+</body>
 </html>

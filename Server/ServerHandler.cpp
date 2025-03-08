@@ -26,28 +26,31 @@ void	ServerHandler::handleEvent(uint32_t events)
 		int	clientSocket = accept(socket, NULL, NULL);
 		if (clientSocket == -1)
 		{
-			std::cerr << "[WEBSERV][ERROR]\t";
-			perror("accept");
+			std::cerr << YELLOW << "\tWebserv : accept : " << strerror(errno) << RESET << std::endl;
 			return;
 		}
 
-		// set non blocking mode and close the fd on execve
-		if (fcntl(clientSocket, F_SETFL, FD_CLOEXEC) == -1)
+		if (fcntl(clientSocket, F_SETFD, FD_CLOEXEC) == -1)
 		{
-			std::cerr << "[WEBSERV][ERROR]\t" << std::endl;
-			perror("fcntl");
+			std::cerr << YELLOW << "\tWebserv : fcntl : " << strerror(errno) << RESET << std::endl;
 			close(clientSocket);
 			return;
 		}
 
-		ClientHandler	*client = new ClientHandler(clientSocket, this->vServers);
+		ClientHandler	*client = new (std::nothrow) ClientHandler(clientSocket, this->vServers);
+		if (!client)
+		{
+			close(clientSocket);
+			std::cerr << "\tServer " + _toString(socket) + " : Memory allocation failed" << std::endl;
+			return;
+		}
 		HTTPserver->registerHandler(clientSocket, client, EPOLLIN);
-		HTTPserver->addTimer(clientSocket);
+		HTTPserver->addTimer(client);
 
-		std::cout << "[SERVER]\tClient Connected To Socket " << clientSocket << "..." << std::endl;
+		std::cout << CYAN << "\tClient Connected To Socket " << clientSocket << RESET << std::endl;
 	}
 	else if (events & EPOLLHUP)
 	{
-		throw(Disconnect("[SERVER-" + _toString(socket) + "] SHUTDOWN"));
+		throw(Disconnect("\tServer " + _toString(socket) + " : Shutdown"));
 	}
 }

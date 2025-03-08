@@ -1,16 +1,12 @@
 #ifndef ARES_HPP
 # define ARES_HPP
 
-# include <iostream>
-# include <vector>
 # include <map>
 # include <dirent.h>
-# include <cstring>
 # include <sys/socket.h>
-# include <algorithm>
 # include "../Request/Request.hpp"
 
-# define SEND_BUFFER_SIZE 16384 /*4096*/
+# define SEND_BUFFER_SIZE 16384
 
 enum State
 {
@@ -30,11 +26,6 @@ public:
 		statusCodes.insert(std::make_pair(201, "Created"));
 		statusCodes.insert(std::make_pair(204, "No Content"));
 		statusCodes.insert(std::make_pair(206, "Partial Content"));
-		// statusCodes.insert(std::make_pair(301, "Moved Permanently"));
-		// statusCodes.insert(std::make_pair(302, "Found"));
-		// statusCodes.insert(std::make_pair(303, "See Other"));
-		// statusCodes.insert(std::make_pair(307, "Temporary Redirect"));
-		// statusCodes.insert(std::make_pair(308, "Permanent Redirect"));
 
 		mimeTypes.insert(std::make_pair(".html", "text/html"));
 		mimeTypes.insert(std::make_pair(".htm", "text/html"));
@@ -66,7 +57,6 @@ public:
 
 		sender = &AResponse::sendHeaders;
 	}
-	AResponse& operator=(const AResponse& rhs);
 
 	virtual void	generateHeaders( void ) = 0;
 	virtual int		respond() = 0;
@@ -83,10 +73,9 @@ public:
 	{
 		ssize_t bytesSent = send(socket, headers.c_str(), headers.size(), 0);
 		if (bytesSent == -1)
-			throw(Disconnect("[CLIENT-" + _toString(socket) + "] send: " + strerror(errno)));
-		std::cout << GREEN << "======[SENT DATA OF SIZE " << bytesSent << " (HEADERS)]======" << RESET << std::endl;
-		std::cout << headers;
-		std::cout << "==============================================================" << std::endl;
+			throw(Disconnect("\tClient " + _toString(socket) + " : send: " + strerror(errno)));
+		else if (bytesSent == 0 && !headers.empty())
+			throw(Disconnect("\tClient " + _toString(socket) + " : send: unable to send"));
 		headers.erase(0, bytesSent);
 		if (headers.empty())
 			sender = &AResponse::sendBody;
@@ -97,14 +86,13 @@ public:
 	{
 		ssize_t bytesSent = send(socket, buffer.c_str(), buffer.size(), 0);
 		if (bytesSent == -1)
-			throw(Disconnect("[CLIENT-" + _toString(socket) + "] send: " + strerror(errno)));
-		std::cout << GREEN << "======[SENT DATA OF SIZE " << bytesSent << " (BODY)]======" << RESET << std::endl;
-		std::cout << buffer;
-		std::cout << "==============================================================" << std::endl;
+			throw(Disconnect("\tClient " + _toString(socket) + " : send: " + strerror(errno)));
+		else if (bytesSent == 0 && !buffer.empty())
+			throw(Disconnect("\tClient " + _toString(socket) + " : send: unable to send"));
 		buffer.erase(0, bytesSent);
 		return (buffer.empty());
 	}
-	
+
 protected:
 	int				socket;
 	enum State		state;

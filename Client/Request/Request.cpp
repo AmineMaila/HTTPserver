@@ -3,55 +3,52 @@
 /*                                                        :::      ::::::::   */
 /*   Request.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: nazouz <nazouz@student.42.fr>              +#+  +:+       +#+        */
+/*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/21 10:33:50 by nazouz            #+#    #+#             */
-/*   Updated: 2025/03/01 18:42:35 by nazouz           ###   ########.fr       */
+/*   Updated: 2025/03/08 19:32:04 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Request.hpp"
 
-Request::~Request() {}
-
-Request::Request(std::vector<ServerConfig>&	vServers) : vServers(vServers) {
-	bufferSize = 0;
+Request::Request(std::vector<ServerConfig>&	vServers) : vServers(vServers)
+{
+	headersParsed = false;
+	bodyStored = false;
 	
-	isEncoded = false;
-	isMultipart = false;
-	headersFinished = false;
-	bodyFinished = false;
+	requestData.config = &vServers[0].ServerDirectives;
 	
-	_RequestData._Config = &vServers[0].ServerDirectives;
-
-	_RequestRaws.mimeTypes["text/html"] = ".html";
-	_RequestRaws.mimeTypes["text/css"] = ".css";
-	_RequestRaws.mimeTypes["text/csv"] = ".csv";
-	_RequestRaws.mimeTypes["application/doc"] = ".doc";
-	_RequestRaws.mimeTypes["image/gif"] = ".gif";
-	_RequestRaws.mimeTypes["image/jpeg"] = ".jpg";
-	_RequestRaws.mimeTypes["text/javascript"] = ".js";
-	_RequestRaws.mimeTypes["application/json"] = ".json";
-	_RequestRaws.mimeTypes["application/java-archive"] = ".jar";
-	_RequestRaws.mimeTypes["audio/mpeg"] = ".mp3";
-	_RequestRaws.mimeTypes["video/mp4"] = ".mp4";
-	_RequestRaws.mimeTypes["video/mpeg"] = ".mpeg";
-	_RequestRaws.mimeTypes["image/png"] = ".png";
-	_RequestRaws.mimeTypes["application/pdf"] = ".pdf";
-	_RequestRaws.mimeTypes["application/x-sh"] = ".sh";
-	_RequestRaws.mimeTypes["audio/wav"] = ".wav";
-	_RequestRaws.mimeTypes["audio/webm"] = ".weba";
-	_RequestRaws.mimeTypes["video/webm"] = ".webm";
-	_RequestRaws.mimeTypes["image/webp"] = ".webp";
-	_RequestRaws.mimeTypes["application/xml"] = ".xml";
-	_RequestRaws.mimeTypes["application/zip"] = ".zip";
-	_RequestRaws.mimeTypes["application/x-tar"] = ".tar";
-	_RequestRaws.mimeTypes["application/octet-stream"] = ".bin";
-	_RequestRaws.mimeTypes["image/avif"] = ".avif";
-	_RequestRaws.mimeTypes["video/x-msvideo"] = ".avi";
+	requestRaws.mimeTypes["text/plain"] = "";
+	requestRaws.mimeTypes["text/html"] = ".html";
+	requestRaws.mimeTypes["text/css"] = ".css";
+	requestRaws.mimeTypes["text/csv"] = ".csv";
+	requestRaws.mimeTypes["application/doc"] = ".doc";
+	requestRaws.mimeTypes["image/gif"] = ".gif";
+	requestRaws.mimeTypes["image/jpeg"] = ".jpg";
+	requestRaws.mimeTypes["text/javascript"] = ".js";
+	requestRaws.mimeTypes["application/json"] = ".json";
+	requestRaws.mimeTypes["application/java-archive"] = ".jar";
+	requestRaws.mimeTypes["audio/mpeg"] = ".mp3";
+	requestRaws.mimeTypes["video/mp4"] = ".mp4";
+	requestRaws.mimeTypes["video/mpeg"] = ".mpeg";
+	requestRaws.mimeTypes["image/png"] = ".png";
+	requestRaws.mimeTypes["application/pdf"] = ".pdf";
+	requestRaws.mimeTypes["application/x-sh"] = ".sh";
+	requestRaws.mimeTypes["audio/wav"] = ".wav";
+	requestRaws.mimeTypes["audio/webm"] = ".weba";
+	requestRaws.mimeTypes["video/webm"] = ".webm";
+	requestRaws.mimeTypes["image/webp"] = ".webp";
+	requestRaws.mimeTypes["application/xml"] = ".xml";
+	requestRaws.mimeTypes["application/zip"] = ".zip";
+	requestRaws.mimeTypes["application/x-tar"] = ".tar";
+	requestRaws.mimeTypes["application/octet-stream"] = ".bin";
+	requestRaws.mimeTypes["image/avif"] = ".avif";
+	requestRaws.mimeTypes["video/x-msvideo"] = ".avi";
 }
 
-Request::Request(const Request& rhs) : vServers(rhs.vServers) {
+Request::Request(const Request& rhs) : vServers(rhs.vServers)
+{
 	*this = rhs;
 }
 
@@ -60,71 +57,87 @@ Request&	Request::operator=(const Request& rhs)
 	if (this != &rhs)
 	{
 		buffer = rhs.buffer;
-		bufferSize = rhs.bufferSize;
-
-		_RequestData = rhs._RequestData;
-		_RequestRaws = rhs._RequestRaws;
 		
-		headersFinished = rhs.headersFinished;
-		bodyFinished = rhs.bodyFinished;
-		isEncoded = rhs.isEncoded;
-		isMultipart = rhs.isMultipart;
+		requestData = rhs.requestData;
+		requestRaws = rhs.requestRaws;
+		
+		headersParsed = rhs.headersParsed;
+		bodyStored = rhs.bodyStored;
 	}
 	return *this;
 }
 
-// RequestData::RequestData() : isCGI(false), isDir(false), isRange(false), keepAlive(true), StatusCode(200) {
-// 	// should i generate cgitempfilename here? we will see
-// 	contentLength = 0;
-// 	_Config = NULL; // ?
-// }
+Request::~Request()
+{
+	if (fileUploader.is_open())
+		fileUploader.close();
+}
 
-// RequestData&		RequestData::operator=(const RequestData &rhs) {
-// 	if (this != &rhs) {
-// 		isCGI = rhs.isCGI;
-// 		isDir = rhs.isDir;
-// 		isRange = rhs.isRange;
-// 		keepAlive = rhs.keepAlive;
-// 		StatusCode = rhs.StatusCode;
+#include "Request.hpp"
 
-// 		Method = rhs.Method;
-// 		URI = rhs.URI;
-// 		HTTPversion = rhs.HTTPversion;
+ServerConfig&	Request::getMatchingServer()
+{
+	for (size_t i = 0; i < vServers.size(); i++)
+	{
+		for (size_t j = 0; j < vServers[i].server_names.size(); j++)
+		{
+			if (vServers[i].server_names[j] == requestData.serverHost)
+				return vServers[i];
+		}
+	}
+	return vServers[0];
+}
 
-// 		queryString = rhs.queryString;
-// 		pathInfo = rhs.pathInfo;
-// 		scriptName = rhs.scriptName;
-// 		cgiIntrepreter = rhs.cgiIntrepreter;
-// 		CGITempFilename = rhs.CGITempFilename;
-		
-// 		fullPath = rhs.fullPath;
-// 		contentType = rhs.contentType;
-// 		contentLength = rhs.contentLength;
-// 		connection = rhs.connection;
-// 		host = rhs.host;
-// 		transferEncoding = rhs.transferEncoding;
-// 		matchingLocation = rhs.matchingLocation;
+void	Request::setMatchingConfig()
+{
+	ServerConfig&	matchingServer = getMatchingServer();
+	
+	std::map<std::string, Directives>::iterator it = matchingServer.Locations.begin();
+	for (; it != matchingServer.Locations.end(); it++)
+	{
+		if (requestData.URI.find(it->first) == 0)
+		{
+			if (it->first.size() > requestData.matchingLocation.size())
+				requestData.matchingLocation = it->first;
+		}
+	}
 
-// 		Headers = rhs.Headers;
+	if (requestData.matchingLocation.empty())
+		requestData.config = &matchingServer.ServerDirectives;
+	else
+		&matchingServer.Locations.find(requestData.matchingLocation)->second;
+	
+	if (std::find(requestData.config->methods.begin(), requestData.config->methods.end(), requestData.Method) == requestData.config->methods.end())
+		throw Code(405);
+}
 
-// 		// _Config: deep copy or shallow copy?
-// 		// if (rhs._Config) {
-// 		// 	if (!_Config) {
-// 		// 		_Config = new Directives(*rhs._Config); // Deep copy
-// 		// 	} else {
-// 		// 		*_Config = *rhs._Config;
-// 		// 	}
-// 		// } else {
-// 		// 	delete _Config;
-// 		// 	_Config = nullptr;
-// 		// }
+// PARSING CONTROL CENTER
+int	Request::process(char *recvBuffer, int recvBufferSize)
+{
+	buffer.append(recvBuffer, recvBufferSize);
 
-// 		// reset CGITempFilestream since fstream cannot be copied
-// 		if (CGITempFilestream.is_open())
-// 			CGITempFilestream.close();
-// 		// if (!rhs.CGITempFilename.empty()) {
-// 		// 	CGITempFilestream.open(rhs.CGITempFilename, std::ios::in | std::ios::out);
-// 		// }
-// 	}
-// 	return *this;
-// }
+	if (!headersParsed)
+	{
+		if (buffer.size() > 16384) // 16KB
+			throw Code(431);
+		if (buffer.find(DOUBLE_CRLF) == std::string::npos)
+			return RECV;
+
+		parseRequestLine();
+		parseHeaders();
+		validateHeaders();
+		setMatchingConfig();
+		resolveURI(requestData);
+		headersParsed = true;
+		if (requestData.Method != "POST")
+			return RESPOND;
+		if (requestData.isCGI)
+		{
+			if (!requestData.isEncoded)
+				return FORWARD_CGI;
+			openTmpFile();
+		}
+	}
+	processBody();
+	return bodyStored;
+}

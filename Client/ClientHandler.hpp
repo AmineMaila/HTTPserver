@@ -13,6 +13,8 @@ public:
 	ClientHandler(int fd, std::vector<ServerConfig>& vServers);
 
 
+	void	kickCGI(int code);
+
 	void	reset();
 	void 	handleRead();
 	void 	handleWrite();
@@ -21,18 +23,18 @@ public:
 	void	createResponse();
 	void	deleteResponse();
 	
-	void	ctime();
-	time_t	getElapsedTime() const;
-
+	bool	childStatus();
+	time_t	getCgiTimer() const;
 	int		getFd() const;
+	bool	getCgiActive() const;
 
 private:
-	time_t						elapsedTime;
-
 	int							socket;
-	Request						request;
 
+	time_t						cgiTimer;
+	bool						cgiActive;
 	AResponse					*response;
+	Request						request;
 
 	std::vector<ServerConfig>&	vServers;
 	Directives					config;

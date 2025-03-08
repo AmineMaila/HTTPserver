@@ -7,45 +7,37 @@ void	CGIHandler::validateHeaders()
 	// Content-Type
 	field = headersMap.find("content-type");
 	if (field == headersMap.end() && !buffer.empty())
-	{
-		std::cerr << "[CGI][ERROR]\tHEADER[Contet-Type] NOT PROVIDED BY SCRIPT" << std::endl;
 		throw(Code(500));
-	}
 
 	// ContentLength
 	field = headersMap.find("content-length");
 	if (field == headersMap.end() && !buffer.empty())
 	{
 		headers.append("\r\nTransfer-Encoding: chunked");
-		CGIreader = &CGIHandler::readCGIChunked;
+		chunked = true;
 		buffer = buildChunk(buffer.c_str(), buffer.size());
 	}
 
 	// Status
-	std::vector<std::string> statusVec;
+	std::pair<std::string, std::string> statusMsg;
 	field = headersMap.find("status");
 	if (headersMap.find("status") != headersMap.end())
 	{
-		statusVec = split(field->second, " \t\f\v");
-		if (statusVec.size() != 2)
-		{
-			std::cerr << "[CGI][ERROR]\tMALFORMED STATUS HEADER IN CGI" << std::endl;
-			throw(Code(500));
-		}
+		size_t splitPos = field->second.find_first_of(' ');
+		if (splitPos != std::string::npos)
+			statusMsg.second = field->second.substr(splitPos + 1);
+		statusMsg.first = field->second.substr(0, splitPos);
 
 		char *stop;
-		reqCtx->StatusCode = strtoul(statusVec[0].c_str(), &stop, 10);
+		reqCtx->statusCode = strtoul(statusMsg.first.c_str(), &stop, 10);
 		if (errno == ERANGE || errno == EINVAL)
-		{
-			std::cerr << "[CGI][ERROR]\tMALFORMED STATUS HEADER IN CGI" << std::endl;
 			throw(Code(500));
-		}
-		headers.insert(0, "HTTP/1.1 " + _toString(reqCtx->StatusCode) + " " + statusVec[1]);
+		headers.insert(0, "HTTP/1.1 " + statusMsg.first + " " + statusMsg.second);
 
 		headersMap.erase(field);
 	}
 	else
-		headers.insert(0, "HTTP/1.1 " + _toString(reqCtx->StatusCode) + " " + getCodeDescription(reqCtx->StatusCode));
+		headers.insert(0, "HTTP/1.1 " + _toString(reqCtx->statusCode) + " " + getCodeDescription(reqCtx->statusCode));
 
 	// Location
 	field = headersMap.find("location");
@@ -53,7 +45,7 @@ void	CGIHandler::validateHeaders()
 	{
 		if (field->second.at(0) == '/')
 			throw(CGIRedirect(field->second));
-		if (statusVec.empty())
+		if (statusMsg.first.empty())
 			throw(Code(302, field->second));
 	}
 }
@@ -62,10 +54,7 @@ void	CGIHandler::parseHeaders()
 {
 	size_t CRLFpos = buffer.find("\r\n\r\n");
 	if (CRLFpos == std::string::npos)
-	{
-		std::cerr << "[CGI][ERROR]\tCGI HEADERS NOT FOUND" << std::endl;
 		throw(Code(500));
-	}
 	size_t	start = 0;
 	size_t	end = 0;
 
@@ -79,10 +68,7 @@ void	CGIHandler::parseHeaders()
 
 		size_t pos = field.find(':');
 		if (pos == std::string::npos)
-		{
-			std::cerr << "[CGI][ERROR]\tMALFORMED CGI HEADERS" << std::endl;
 			throw(Code(500));
-		}
 
 		std::string key = stringtolower(field.substr(0, pos));
 		std::string value = stringtrim(field.substr(pos + 1), " \t\v\f");
@@ -95,10 +81,7 @@ void	CGIHandler::parseHeaders()
 		for (size_t i = 0; i < key.size(); i++)
         {
             if (!(std::isalnum(key[i]) || key[i] == '-'))
-            {
-                std::cerr << "[CGI][ERROR]\tMALFORMED HEADER[" << key << "]" << std::endl;
                 throw Code(500);
-            }
         }
 		headersMap[key] = value;
 	
@@ -118,6 +101,14 @@ void	CGIHandler::addHeaders()
 
 void	CGIHandler::generateHeaders()
 {
+	if (buffer.size() < 8192 && nextState != DONE)
+	{
+		state = READ;
+		nextState = HEADERS;
+		return ;
+	}
+	headers.reserve(1024);
+
 	headers.append("\r\nServer: webserv/1.0");
 	headers.append("\r\nDate: " + getDate());
 
@@ -131,8 +122,9 @@ void	CGIHandler::generateHeaders()
 	addHeaders();
 	headers.append("\r\n\r\n");
 	headersParsed = true;
+	nextState = READ;
 	if ((this->*sender)() == true && buffer.empty())
 		state = nextState;
 	else
-		state = WRITE;	
+		state = WRITE;
 }

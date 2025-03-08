@@ -4,15 +4,21 @@ import html
 
 print("Content-Type: text/html\r\n\r\n", end="")
 
-# Get query parameters
 form = cgi.FieldStorage()
 name = form.getvalue('name')
 
-if name:
-    # Escape user input to prevent XSS attacks
-    safe_name = html.escape(name)
-    print(f"<h1>Hello {safe_name}!</h1>")
-else:
-    print("<h1>Hello stranger!</h1>")
+print("""<!DOCTYPE html>
+<html>
+<head>
+    <title>Hello Page</title>
+</head>
+<body>""")
 
-print("</body></html>")
+if name:
+    safe_name = html.escape(name) # xss protection
+    print(f"    <h1>Hello {safe_name}!</h1>")
+else:
+    print("    <h1>Hello stranger!</h1>")
+
+print("""</body>
+</html>""")

@@ -6,46 +6,72 @@
 ClientHandler::~ClientHandler()
 {
 	HTTPserver->removeHandler(socket);
-	HTTPserver->eraseTimer(socket);
+	HTTPserver->eraseTimer(this);
 	deleteResponse();
 }
 
 ClientHandler::ClientHandler(int fd, std::vector<ServerConfig>& vServers) : request(vServers), vServers(vServers)
 {
-	// getsockname(fd);
 	socket = fd;
+	cgiActive = false;
+	cgiTimer= 0;
 	response = NULL;
 	reqState = REGULAR;
-	elapsedTime = std::time(NULL);
-}
-
-time_t	ClientHandler::getElapsedTime() const
-{
-	return (elapsedTime);
-}
-
-void	ClientHandler::ctime()
-{
-	elapsedTime = std::time(NULL);
 }
 
 void	ClientHandler::reset()
 {
-	std::cout << GREEN << "[WEBSERV][CLIENT-" << socket << "]\tRESETTING.." << RESET << std::endl;
 	reqState = REGULAR;
 	deleteResponse();
 	request = Request(vServers);
 }
 
-int	ClientHandler::getFd() const
+time_t	ClientHandler::getCgiTimer() const { return (cgiTimer); }
+
+bool	ClientHandler::getCgiActive() const { return (cgiActive); }
+
+int	ClientHandler::getFd() const { return (socket); }
+
+bool	ClientHandler::childStatus()
 {
-	return (socket);
+	if (!cgiActive)
+		return (false);
+
+	CGIHandler *cgi = static_cast<CGIHandler *>(response);
+	int status;
+	int ret = waitpid(cgi->getPid(), &status, WNOHANG);
+	if (ret > 0)
+	{
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+		{
+			kickCGI(500);
+			return (true);
+		}
+	}
+	return (false);
+}
+
+void	ClientHandler::kickCGI(int code)
+{
+	deleteResponse();
+	response = new (std::nothrow) ErrorPage(Code(code), socket, request.getRequestData());
+	if (!response)
+		throw(Disconnect("\tClient " + _toString(socket) + " : Memory allocation failed"));
+	HTTPserver->updateHandler(socket, EPOLLOUT);
 }
 
 void	ClientHandler::deleteResponse()
 {
 	if (response)
 	{
+		if (cgiActive)
+		{
+			CGIHandler *cgi = static_cast<CGIHandler *>(response);
+			HTTPserver->eraseDependency(cgi);
+			HTTPserver->collect(cgi);
+			HTTPserver->decCgiCounter();
+			cgiActive = false;
+		}
 		delete response;
 		response = NULL;
 	}
@@ -55,16 +81,24 @@ void	ClientHandler::createResponse()
 {
 	if (request.getRequestData()->isCGI)
 	{
-		CGIHandler	*cgi = new CGIHandler(socket, request.getRequestData());
-		HTTPserver->registerDependency(cgi, this);
-		cgi->execCGI();
-		HTTPserver->registerHandler(cgi->getFd(), cgi, EPOLLIN);
+		if (HTTPserver->getCgiCounter() >= PROCESS_LIMIT)
+			throw(Code(503));
 		HTTPserver->updateHandler(socket, 0);
+		CGIHandler	*cgi = new (std::nothrow) CGIHandler(socket, request.getRequestData());
+		if (!cgi)
+			throw(Disconnect("\tClient " + _toString(socket) + " : Memory allocation failed"));
+		cgiTimer = time(NULL);
+		cgiActive = true;
+		HTTPserver->registerDependency(cgi, this);
+		HTTPserver->registerHandler(cgi->getFd(), cgi, EPOLLIN);
 		response = cgi;
+		HTTPserver->incCgiCounter();
 	}
 	else
 	{
-		this->response = new Response(socket, request.getRequestData());
+		response = new (std::nothrow) Response(socket, request.getRequestData());
+		if (!response)
+			throw(Disconnect("\tClient " + _toString(socket) + " : Memory allocation failed"));
 		HTTPserver->updateHandler(socket, EPOLLOUT);
 	}
 }
@@ -75,40 +109,34 @@ void 	ClientHandler::handleRead()
 
 	ssize_t	bytesReceived = recv(socket, buf, RECV_BUFFER_SIZE, 0);
 	if (bytesReceived == 0)
-		throw(Disconnect("[CLIENT-" + _toString(socket) + "] CLOSED CONNECTION"));
+		throw(Disconnect("\tClient " + _toString(socket) + " : Closed Connection"));
 	else if (bytesReceived < 0)
-	{
-		std::cerr << "[WEBSERV][ERROR]\t recv: " << strerror(errno) << std::endl;
-		throw(Code(500));
-	}
+		throw(Disconnect("\tClient " + _toString(socket) + " : recv: " + strerror(errno)));
 	else
 	{
-		std::cout << "================RECIEVED=" << socket << "============" << std::endl;
-		std::cout << buf;
-		std::cout << "====================================" << std::endl;
 		int returnValue;
 		switch (reqState)
 		{
 			case REGULAR:
-				returnValue = request.parseControlCenter(buf, bytesReceived);
-				if (returnValue == RECV)
-					std::cout << "RECV" << std::endl;
-				if (returnValue == FORWARD_CGI) // receive CGI body
+				returnValue = request.process(buf, bytesReceived);
+				if (returnValue == FORWARD_CGI)
 				{
-					std::cout << "FORWARD_CGI" << std::endl;
-					CGIHandler	*cgi = new CGIHandler(socket, request.getRequestData());
+					if (HTTPserver->getCgiCounter() >= PROCESS_LIMIT)
+						throw(Code(503));
+					CGIHandler	*cgi = new (std::nothrow) CGIHandler(socket, request.getRequestData());
+					if (!cgi)
+						throw(Disconnect("\tClient " + _toString(socket) + " : Memory allocation failed"));
+					cgiTimer = time(NULL);
+					cgiActive = true;
 					HTTPserver->registerDependency(cgi, this);
-					cgi->execCGI();
 					HTTPserver->registerHandler(cgi->getFd(), cgi, 0);
 					cgi->setBuffer(request.getBuffer());
 					response = cgi;
 					reqState = CGI;
+					HTTPserver->incCgiCounter();
 				}
-				else if (returnValue == RESPOND) // receiving done - move to response
-				{
-					std::cout << "RESPOND" << std::endl;
+				else if (returnValue == RESPOND)
 					createResponse();
-				}
 				break;
 			case CGI:
 				static_cast<CGIHandler *>(response)->setBuffer(buf, bytesReceived);
@@ -121,21 +149,25 @@ void 	ClientHandler::handleWrite()
 {
 	if (response->respond() == 1)
 	{
-		std::cout << GREEN << "[WEBSERV][CLIENT-" << socket << "]\tCLIENT SERVED" << RESET << std::endl;
+		std::cout << MAGENTA
+					<< "\t" << request.getRequestData()->Method
+					<< " " << request.getRequestData()->URI
+					<< " " << request.getRequestData()->statusCode
+					<< RESET << std::endl;
 		if (request.getRequestData()->keepAlive)
 		{
-			HTTPserver->updateTimer(socket);
+			HTTPserver->updateTimer(this);
 			HTTPserver->updateHandler(socket, EPOLLIN);
 			this->reset();
 		}
 		else
-			throw(Disconnect("[CLIENT-" + _toString(socket) + "] CONNECTION CLOSE"));
+			throw(Disconnect());
 	}
 }
 
 void	ClientHandler::handleEvent(uint32_t events)
 {
-	HTTPserver->updateTimer(socket);
+	HTTPserver->updateTimer(this);
 	try
 	{
 		if (events & EPOLLIN)
@@ -156,15 +188,15 @@ void	ClientHandler::handleEvent(uint32_t events)
 				createResponse();
 			}
 		}
+		else if (events & EPOLLHUP)
+			throw(Disconnect("\tClient " + _toString(socket) + " : Closed connection"));
 	}
 	catch (Code& e)
 	{
 		deleteResponse();
-		this->response = new ErrorPage(e, socket, request.getRequestData());
+		response = new (std::nothrow) ErrorPage(e, socket, request.getRequestData());
+		if (!response)
+			throw(Disconnect("\tClient " + _toString(socket) + " : Memory allocation failed"));
 		HTTPserver->updateHandler(socket, EPOLLOUT);
-	}
-	if (events & EPOLLHUP)
-	{
-		throw(Disconnect("[CLIENT-" + _toString(socket) + "] CLOSED CONNECTION"));
 	}
 }

@@ -1,6 +1,6 @@
 # include "Response.hpp"
 
-void	Response::parseRangeHeader( void ) // example => Range: bytes=0-499,1000-1499
+void	Response::parseRangeHeader( void )
 {
 	std::string	value = reqCtx->Headers["range"];
 	std::string prefix = "bytes=";
@@ -88,12 +88,12 @@ int	Response::rangeContentLength( void )
 
 void	Response::handleRange()
 {
-	reqCtx->StatusCode = 206;
+	reqCtx->statusCode = 206;
 	parseRangeHeader();
-	std::cout << "content-length: " << contentLength << std::endl;
 	if (rangeData.ranges.size() == 1)
 	{
 		headers.append("\r\nContent-Range: bytes " + _toString(rangeData.current->range.first) + "-" + _toString(rangeData.current->range.second) + "/" + _toString(contentLength));
+		contentLength = rangeData.current->rangeLength;
 	}
 	else
 	{
@@ -116,7 +116,7 @@ void	Response::nextRange()
 			else
 				state = WRITE;
 		}
-		else if (rangeData.ranges.size() == 1)//////// FIIIIX
+		else if (rangeData.ranges.size() == 1)
 		{
 			state = DONE;
 		}

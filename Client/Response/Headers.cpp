@@ -20,23 +20,20 @@ void	Response::handlePOST()
 
 void	Response::handleDELETE( void )
 {
-	if (reqCtx->isDir)
-	{
-		if (rmdir(reqCtx->fullPath.c_str()) == -1)
-			throw(Code(500));
-	}
+	if (reqCtx->isDir || access(reqCtx->fullPath.c_str(), W_OK) != 0)
+		throw(Code(403));
 	else
 	{
-		if (remove(reqCtx->fullPath.c_str()) == -1)
+		if (std::remove(reqCtx->fullPath.c_str()) == -1)
 			throw(Code(500));
 	}
-	reqCtx->StatusCode = 204;
+	reqCtx->statusCode = 204;
 	nextState = DONE;
 }
 
 void	Response::handleGET( void )
 {
-	if (reqCtx->_Config->autoindex && reqCtx->isDir)
+	if (reqCtx->config->autoindex && reqCtx->isDir)
 	{
 		initDirList();
 		headers.append("\r\nTransfer-Encoding: chunked");
@@ -61,6 +58,8 @@ void	Response::handleGET( void )
 
 void	Response::generateHeaders( void )
 {
+	headers.reserve(1024);
+
 	headers.append("\r\nServer: webserv/1.0");
 	headers.append("\r\nDate: " + getDate());
 
@@ -76,7 +75,7 @@ void	Response::generateHeaders( void )
 	else
 		headers.append("\r\nConnection: close");
 
-	headers.insert(0, "HTTP/1.1 " + _toString(reqCtx->StatusCode) + " " + getCodeDescription(reqCtx->StatusCode)); // status line
+	headers.insert(0, "HTTP/1.1 " + _toString(reqCtx->statusCode) + " " + getCodeDescription(reqCtx->statusCode)); // status line
 	headers.append("\r\n\r\n");
 	if (reqCtx->Method == "POST")
 		headers.append(buffer);

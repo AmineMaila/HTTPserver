@@ -6,18 +6,18 @@
 #    By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/11/21 09:47:15 by nazouz            #+#    #+#              #
-#    Updated: 2025/03/03 15:57:21 by mmaila           ###   ########.fr        #
+#    Updated: 2025/03/08 19:31:25 by mmaila           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME			= 		webserv
 
-CPP				= 		g++
+CPP				= 		c++
 
-CPPFLAGS		= 		-Wall -Werror -Wextra -g3 -std=c++98 #-fsanitize=address
+CPPFLAGS		= 		-Wall -Werror -Wextra
 
 INCLUDE			=		\
-						./_Config/Config.hpp \
+						./Config/Config.hpp \
 						./IEventHandler.hpp \
 						./Client/Request/Request.hpp \
 						./Client/Response/AResponse.hpp \
@@ -27,16 +27,16 @@ INCLUDE			=		\
 						./Client/ClientHandler.hpp \
 						./HTTPServer/Webserv.hpp \
 						./Client/CGI/CGIHandler.hpp \
+						./Utils/Helpers.hpp \
 
 
 SRCS			= 		\
-						./_Config/Config.cpp \
-						./_Config/Parsing.cpp \
-						./_Config/ServerConstructor.cpp \
-						./_Config/Validators.cpp \
+						./Config/Config.cpp \
+						./Config/Parsing.cpp \
+						./Config/ServerConstructor.cpp \
+						./Config/Validators.cpp \
 						./HTTPServer/Webserv.cpp \
 						./Client/Request/Request.cpp \
-						./Client/Request/_ControlCenter.cpp \
 						./Client/Request/Headers.cpp \
 						./Client/Request/Body.cpp \
 						./Client/Response/Response.cpp \
@@ -58,6 +58,7 @@ OBJDIR			=		./objects
 OBJS			= 		$(SRCS:%.cpp=$(OBJDIR)/%.o)
 
 all : $(NAME)
+	@mkdir -p /var/www/webser/
 
 $(OBJDIR)/%.o : %.cpp $(INCLUDE)
 	@mkdir -p $(dir $@)

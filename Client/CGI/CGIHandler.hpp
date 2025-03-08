@@ -9,8 +9,6 @@ class CGIHandler : public EventHandler, public AResponse
 public:
 	virtual ~CGIHandler();
 	CGIHandler(int& clientSocket, RequestData *data);
-	CGIHandler(const CGIHandler& rhs);
-	CGIHandler& operator=(const CGIHandler& rhs);
 	
 	pid_t	getPid() const;
 	int		getFd() const;
@@ -38,7 +36,6 @@ public:
 	int		respond();
 
 private:
-	// created here
 	std::vector<std::string>			envVars;
 	std::vector<char *>					envPtr;
 	char								*args[3];
@@ -48,7 +45,7 @@ private:
 	size_t	inBodySize;
 	pid_t	pid;
 	bool	headersParsed;
-	void	(CGIHandler::*CGIreader)();
+	bool	chunked;
 };
 
 #endif

@@ -1,145 +1,185 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   URI.cpp                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/03/06 20:11:27 by nazouz            #+#    #+#             */
+/*   Updated: 2025/03/08 19:32:04 by mmaila           ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "ClientHandler.hpp"
 
-void	produceAbsPath(RequestData& _RequestData) {
+void	produceAbsPath(RequestData& requestData)
+{
 	
-	if (!_RequestData._Config->redirect.second.empty())
+	if (!requestData.config->redirect.second.empty())
 	{
-		if (_RequestData._Config->redirect.second.find("http://") != std::string::npos
-			|| _RequestData._Config->redirect.second.find("https://") != std::string::npos)
+		if (requestData.config->redirect.second.find("http://") != std::string::npos
+			|| requestData.config->redirect.second.find("https://") != std::string::npos)
 		{
-			throw(Code(_RequestData._Config->redirect.first, _RequestData._Config->redirect.second));
+			throw(Code(requestData.config->redirect.first, requestData.config->redirect.second));
 		}
 		else
 		{
-			if (_RequestData._Config->redirect.second.at(0) != '/')
-				_RequestData._Config->redirect.second.insert(0, "/");
-			throw(Code(_RequestData._Config->redirect.first, "http://" + _RequestData.host + _RequestData._Config->redirect.second));
+			if (requestData.config->redirect.second.at(0) != '/')
+				requestData.config->redirect.second.insert(0, "/");
+			throw(Code(requestData.config->redirect.first, "http://" + requestData.host + requestData.config->redirect.second));
 		}
 	}
 
-	if (!_RequestData._Config->alias.empty()) {
-		if (_RequestData._Config->alias[_RequestData._Config->alias.length() - 1] == '/')
-			_RequestData._Config->alias.erase(_RequestData._Config->alias.length() - 1);
-		_RequestData.fullPath = _RequestData._Config->alias + _RequestData.URI.substr(_RequestData.matchingLocation.length());
+	if (!requestData.config->alias.empty())
+	{
+		if (requestData.config->alias[requestData.config->alias.length() - 1] == '/')
+			requestData.config->alias.erase(requestData.config->alias.length() - 1);
+		requestData.fullPath = requestData.config->alias + requestData.URI.substr(requestData.matchingLocation.length());
 	}
-	else {
-		if (_RequestData._Config->root[_RequestData._Config->root.length() - 1] == '/')
-			_RequestData._Config->root.erase(_RequestData._Config->root.length() - 1);
-		_RequestData.fullPath = _RequestData._Config->root + _RequestData.URI;
+	else
+	{
+		if (requestData.config->root[requestData.config->root.length() - 1] == '/')
+			requestData.config->root.erase(requestData.config->root.length() - 1);
+		requestData.fullPath = requestData.config->root + requestData.URI;
 	}
 }
 
-void	setQueryString(RequestData& _RequestData) {
+void	setQueryString(RequestData& requestData)
+{
 	size_t		pos;
 	std::string	query;
 
-	pos = _RequestData.fullPath.find_last_of('#');
+	pos = requestData.fullPath.find_last_of('#');
 	if (pos != std::string::npos)
-		_RequestData.fullPath.erase(pos);
+		requestData.fullPath.erase(pos);
 	
-	pos = _RequestData.fullPath.find_first_of('?');
+	pos = requestData.fullPath.find_first_of('?');
 	if (pos != std::string::npos)
 	{
-		_RequestData.queryString = _RequestData.fullPath.substr(pos + 1);
-		_RequestData.fullPath.erase(pos);
+		requestData.queryString = requestData.fullPath.substr(pos + 1);
+		requestData.fullPath.erase(pos);
 	}
 }
 
-void	setRequestedResourceType(RequestData& _RequestData) {
+void	setRequestedResourceType(RequestData& requestData)
+{
 	struct stat	pathStats;
 	std::string	pathChecker;
 	
 	size_t	startPos = 0;
 	size_t	endPos = 0;
-	while (startPos < _RequestData.fullPath.size()) {
-		endPos = _RequestData.fullPath.find('/', startPos + 1); // check whether it was found or not // no need if it didn't find it it will substr till end of str
-		pathChecker.append(_RequestData.fullPath.substr(startPos, endPos - startPos));
+	while (startPos < requestData.fullPath.size())
+	{
+		endPos = requestData.fullPath.find('/', startPos + 1);
+		pathChecker.append(requestData.fullPath.substr(startPos, endPos - startPos));
 		if (stat(pathChecker.c_str(), &pathStats) != 0)
-		{
-			std::cout << pathChecker <<  "|AAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
 			throw(Code(404));
-		}
 		if (!S_ISDIR(pathStats.st_mode))
 			break ;
 		startPos = endPos;
 	}
-	_RequestData.isDir = S_ISDIR(pathStats.st_mode) ? true : false;
-	_RequestData.pathInfo = _RequestData.fullPath.substr(pathChecker.size());
-	_RequestData.fullPath.erase(pathChecker.size());
+	requestData.isDir = S_ISDIR(pathStats.st_mode) ? true : false;
+	std::string pathInfo = requestData.fullPath.substr(pathChecker.size());
+	if (!pathInfo.empty())
+		requestData.scriptName = requestData.URI.substr(0, requestData.URI.find(pathInfo));
+	else
+		requestData.scriptName = requestData.URI.substr(0, requestData.URI.find_first_of("?"));
+	requestData.pathTranslated = requestData.fullPath;
+	requestData.pathInfo = requestData.URI.substr(0, requestData.URI.find_first_of('?'));
+	requestData.fullPath.erase(pathChecker.size());
 }
 
-void						handleDirectoryResource(RequestData& _RequestData) {
-	if (access(_RequestData.fullPath.c_str(), X_OK) != 0)
+void	handleDirectoryResource(RequestData& requestData)
+{
+	if (access(requestData.fullPath.c_str(), X_OK) != 0)
 		throw(Code(403));
 	
-	if (_RequestData.Method == "GET") {
-		std::vector<std::string>::iterator	it = _RequestData._Config->index.begin();
+	if (requestData.fullPath.at(requestData.fullPath.size() - 1) != '/')
+		requestData.fullPath.append("/");
+
+	if (requestData.Method == "GET")
+	{
+		std::vector<std::string>::iterator	it = requestData.config->index.begin();
 		
-		for (; it != _RequestData._Config->index.end(); it++) {
-			if (access((_RequestData.fullPath + (*it)).c_str(), F_OK) == 0) {
-				_RequestData.fullPath += *it;
-				_RequestData.isDir = false;
+		for (; it != requestData.config->index.end(); it++)
+		{
+			if (it->at(0) == '/')
+				it->erase(0, 1);
+			if (access((requestData.fullPath + (*it)).c_str(), F_OK) == 0)
+			{
+				requestData.fullPath += *it;
+				requestData.isDir = false;
 				break ;
 			}
 		}
 		
-		if (it == _RequestData._Config->index.end()) {
-			if (!_RequestData._Config->autoindex)
-				throw(Code(404));
+		if (it == requestData.config->index.end())
+		{
+			if (!requestData.config->autoindex)
+				throw(Code(403));
 		}
 	}
 }
 
-bool						extensionIsCGI(const std::string& fileName, RequestData& _RequestData) {
-	size_t dot = fileName.find_last_of('.');
+bool	extensionIsCGI(RequestData& requestData)
+{
+	size_t dot = requestData.fullPath.find_last_of('.');
 	if (dot == std::string::npos)
 		return (false);
 
-	std::string file_ext = fileName.substr(dot);
+	std::string file_ext = requestData.fullPath.substr(dot);
 	
-	std::map<std::string, std::string>::iterator it = _RequestData._Config->cgi_ext.find(file_ext);
-	if (it != _RequestData._Config->cgi_ext.end())
+	std::map<std::string, std::string>::iterator it = requestData.config->cgi_ext.find(file_ext);
+	if (it != requestData.config->cgi_ext.end())
 	{
-		_RequestData.cgiIntrepreter = it->second;
+		requestData.cgiIntrepreter = it->second;
 		return true;
 	}
 	return false;
 }
 
-void						handleFileResource(RequestData& _RequestData) {
-	if (access(_RequestData.fullPath.c_str(), R_OK) != 0)
+void	handleFileResource(RequestData& requestData)
+{
+	if (access(requestData.fullPath.c_str(), R_OK) != 0)
 		throw(Code(403));
 
-	std::string	filename = _RequestData.fullPath.substr(_RequestData.fullPath.find_last_of('/') + 1);
+	requestData.fileName = requestData.fullPath.substr(requestData.fullPath.find_last_of('/') + 1);
 
-	_RequestData.isCGI = extensionIsCGI(filename, _RequestData);
-	if (_RequestData.isCGI)
-		_RequestData.scriptName = filename;
-	else if (!_RequestData.pathInfo.empty())
+	requestData.isCGI = extensionIsCGI(requestData);
+	if (!requestData.isCGI && requestData.scriptName != requestData.pathInfo)
 		throw(Code(404));
 }
 
-void			resolveAbsPath(RequestData& _RequestData) {
+void	resolveAbsPath(RequestData& requestData)
+{
 
-	setQueryString(_RequestData);
-	setRequestedResourceType(_RequestData);
-	if (_RequestData.isDir)
-		handleDirectoryResource(_RequestData);
-	if (!_RequestData.isDir)
-		handleFileResource(_RequestData);
+	setQueryString(requestData);
+	setRequestedResourceType(requestData);
+	if (requestData.isDir)
+		handleDirectoryResource(requestData);
+	if (!requestData.isDir)
+		handleFileResource(requestData);
 }
 
-void			resolveURI(RequestData& _RequestData) {
-	_RequestData.fullPath.clear();
+void	resolveURI(RequestData& requestData)
+{
+	requestData.fullPath.clear();
 
-	if (!rootJail(_RequestData.URI))
-		throw(Code(403));
+	produceAbsPath(requestData);
+	resolveAbsPath(requestData);
+	if (requestData.isDir && requestData.URI[requestData.URI.size() - 1] != '/')
+		throw(Code(308, "http://" + requestData.host + requestData.URI + '/'));
 
-	std::cout << "URI: " << _RequestData.URI << std::endl;
-	produceAbsPath(_RequestData);
-	std::cout << "ABSPATH: " << _RequestData.fullPath << std::endl;
-	resolveAbsPath(_RequestData);
-	std::cout << "FULLPATH: " << _RequestData.fullPath << std::endl;
-	if (_RequestData.isDir && _RequestData.URI[_RequestData.URI.size() - 1] != '/')
-		throw(Code(301, "http://" + _RequestData.host + _RequestData.URI + '/'));
+	if (requestData.Method == "POST")
+	{
+		if (!requestData.isCGI)
+		{
+			if (requestData.config->upload_store.empty())
+				throw (Code(403));
+			else if (!requestData.isDir)
+				throw (Code(405));
+		}
+		if (requestData.contentLength > requestData.config->client_max_body_size)
+			throw (Code(413));
+	}
 }

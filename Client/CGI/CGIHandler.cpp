@@ -3,15 +3,16 @@
 
 CGIHandler::~CGIHandler()
 {
-	HTTPserver->removeHandler(cgiSocket);
+	if (cgiSocket != -1)
+		HTTPserver->removeHandler(cgiSocket);
 
-	if (waitpid(pid, NULL, WNOHANG) == 0)
+	if (pid != -1 && waitpid(pid, NULL, WNOHANG) == 0)
 		kill(pid, SIGTERM);
 }
 
-CGIHandler::CGIHandler(int& clientSocket, RequestData *data) : AResponse(clientSocket, data), cgiSocket(-1), inBodySize(0), pid(-1), headersParsed(false)
+CGIHandler::CGIHandler(int& clientSocket, RequestData *data) : AResponse(clientSocket, data), cgiSocket(-1), inBodySize(0), pid(-1), headersParsed(false), chunked(false)
 {
-	CGIreader = &CGIHandler::readCGILength;
+	execCGI();
 }
 
 int	CGIHandler::getFd() const
@@ -28,9 +29,9 @@ bool	CGIHandler::storeBody()
 {
 	int		bytesWritten = write(cgiSocket, buffer.c_str(), buffer.size());
 	if (bytesWritten == -1)
-		throw(Disconnect("[CLIENT-" + _toString(socket) + "][CGI] write: " + strerror(errno)));
-	std::cout << "SOCKPAIR STORE_____" << std::endl << buffer;
-	std::cout << "_____SOCKPAIR STORE" << std::endl;
+		throw(Disconnect("\tClient " + _toString(socket) + " : write: " + strerror(errno)));
+	else if (bytesWritten == 0 && !buffer.empty())
+		throw(Disconnect("\tClient " + _toString(socket) + " : write: unable to write"));
 	buffer.erase(0, bytesWritten);
 	return (buffer.empty());
 }
@@ -43,6 +44,8 @@ void	CGIHandler::setBuffer(std::string buffer)
 			throw(Code(400));
 		this->buffer = buffer;
 		inBodySize += buffer.size();
+		if (inBodySize > reqCtx->config->client_max_body_size)
+			throw(Code(413));
 		HTTPserver->updateHandler(socket, 0);
 		HTTPserver->updateHandler(cgiSocket, EPOLLOUT);
 	}
@@ -54,6 +57,8 @@ void	CGIHandler::setBuffer(char *buf, ssize_t size)
 	inBodySize += size;
 	if (inBodySize > reqCtx->contentLength)
 		throw(Code(400));
+	else if (inBodySize > reqCtx->config->client_max_body_size)
+		throw(Code(413));
 	HTTPserver->updateHandler(socket, 0);
 	HTTPserver->updateHandler(cgiSocket, EPOLLOUT);
 }
@@ -63,11 +68,8 @@ void	CGIHandler::readCGIChunked()
 	char	buf[SEND_BUFFER_SIZE] = {0};
 	int		bytesRead = read(cgiSocket, buf, SEND_BUFFER_SIZE);
 	if (bytesRead == -1)
-		throw(Disconnect("[CLIENT-" + _toString(socket) + "] read: " + strerror(errno)));
+		throw(Disconnect("\tClient " + _toString(socket) + " : read: " + strerror(errno)));
 
-	std::cout << YELLOW << "======[READ(CHUNKED) DATA OF SIZE " << bytesRead << "]======" << RESET << std::endl;
-	std::cout << buffer;
-	std::cout << "+++++++++++++++++++++++++" << std::endl;
 	buffer = buildChunk(buf, bytesRead);
 	if (bytesRead == 0)
 		nextState = DONE;
@@ -83,20 +85,25 @@ void		CGIHandler::readCGILength()
 	int		bytesRead = read(cgiSocket, buf, SEND_BUFFER_SIZE);
 	if (bytesRead == -1)
 	{
-		throw(Disconnect("[CLIENT-" + _toString(socket) + "] read: " + strerror(errno)));
+		throw(Disconnect("\tClient " + _toString(socket) + " : read: " + strerror(errno)));
 	}
 	else if (bytesRead > 0)
 	{
-		buffer = std::string(buf, bytesRead);
-		std::cout << YELLOW << "======[READ(LENGTH) DATA OF SIZE " << bytesRead << "]======" << RESET << std::endl;
-		std::cout << buffer;
-		std::cout << "+++++++++++++++++++++++++" << std::endl;
+		buffer.append(buf, bytesRead);
 		if (headersParsed)
 			state = WRITE;
+		else
+			state = HEADERS;
 	}
 	else
 	{
-		state = DONE;
+		if (headersParsed)
+			state = DONE;
+		else
+		{
+			state = HEADERS;
+			nextState = DONE;
+		}
 	}
 }
 
@@ -125,7 +132,10 @@ void	CGIHandler::handleEvent(uint32_t events)
 {
 	if (events & EPOLLIN)
 	{
-		(this->*CGIreader)();
+		if (chunked)
+			readCGIChunked();
+		else
+			readCGILength();
 		HTTPserver->updateHandler(socket, EPOLLOUT);
 		HTTPserver->updateHandler(cgiSocket, 0);
 	}

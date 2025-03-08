@@ -14,8 +14,6 @@ typedef	struct								Range
 	std::pair<int, int>						range;
 	std::string								header;
 	size_t									rangeLength;
-	bool									headerSent;
-	Range() : headerSent(false) {}
 }											Range;
 
 typedef struct								RangeData
@@ -34,11 +32,6 @@ public:
 	Response();
 	Response(int &clientSocket, RequestData *data);
 	Response& operator=(const Response& rhs);
-
-	inline std::string	buildChunk(const char *data, size_t size) // error
-	{
-		return (toHex(size) + "\r\n" + std::string(data, size) + "\r\n");
-	}
 
 	int		rangeContentLength( void );
 	void	parseRangeHeader();

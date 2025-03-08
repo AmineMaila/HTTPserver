@@ -6,14 +6,14 @@
 /*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/13 16:28:26 by nazouz            #+#    #+#             */
-/*   Updated: 2025/03/03 00:42:38 by mmaila           ###   ########.fr       */
+/*   Updated: 2025/03/08 02:22:39 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Helpers.hpp"
 
-
-std::vector<std::string>	split(const std::string& tosplit, const std::string& charset) {
+std::vector<std::string>	split(const std::string& tosplit, const std::string& charset)
+{
 	std::vector<std::string> result;
 	size_t start = 0, end;
 	
@@ -29,36 +29,38 @@ std::vector<std::string>	split(const std::string& tosplit, const std::string& ch
 	return result;
 }
 
-std::string			stringtrim(const std::string& str, const char *set) {
-	if (str.empty() || !set) {
+std::string	stringtrim(const std::string& str, const char *set)
+{
+	if (str.empty() || !set)
 		return (str);
-	}
 
 	size_t first = str.find_first_not_of(set);
-	if (first == std::string::npos) {
-		return "";
-	}
+	if (first == std::string::npos)
+		return ("");
 
 	size_t last = str.find_last_not_of(set);
 	return str.substr(first, last - first + 1);
 }
 
-std::string		stringtolower(std::string str) {
-	for (size_t i = 0; i < str.size(); i++) {
+std::string		stringtolower(std::string str)
+{
+	for (size_t i = 0; i < str.size(); i++)
 		str[i] = std::tolower(str[i]);
-	}
-	return str;
+	return (str);
 }
 
-bool			stringIsDigit(const std::string& str) {
-	for (size_t i = 0; i < str.size(); i++) {
+bool	stringisdigit(const std::string& str)
+{
+	for (size_t i = 0; i < str.size(); i++)
+	{
 		if (!isdigit(str[i]))
 			return false;
 	}
 	return true;
 }
 
-bool			isHexa(const std::string& num) {
+bool	isHexa(const std::string& num)
+{
 	static const char	hex[] = "0123456789ABCDEFabcdef";
 	
 	if (num.find_first_not_of(hex) != std::string::npos)
@@ -76,20 +78,7 @@ ssize_t htoi(const std::string& num)
 	return (static_cast<ssize_t>(value));
 }
 
-unsigned int	parseIPv4(const std::string& ipAddress) {
-	std::stringstream	ss(ipAddress);
-	unsigned int		octets;
-	unsigned char		*ptr = (unsigned char *)&octets;
-
-	std::string			token;
-	while (std::getline(ss, token, '.')) {
-		*ptr = std::atoi(token.c_str());
-		ptr++;
-	}
-	return octets;
-}
-
-long	fileLength(std::string& path)
+ssize_t	fileLength(std::string& path)
 {
 	struct stat fileStat;
 	if (stat(path.c_str(), &fileStat) == 0)
@@ -126,42 +115,25 @@ std::string	getDate( void )
 	return (buffer);
 }
 
-std::string		_toString(long num)
+std::string	_toString(long num)
 {
 	std::ostringstream ret;
 	ret << num;
 	return (ret.str());
 }
 
-std::string		_toString(unsigned long num)
+std::string	_toString(unsigned long num)
 {
 	std::ostringstream ret;
 	ret << num;
 	return (ret.str());
 }
 
-std::string		_toString(int num)
+std::string	_toString(int num)
 {
 	std::ostringstream ret;
 	ret << num;
 	return (ret.str());
-}
-
-bool	rootJail(const std::string& uri)
-{
-	int					traverse = 0;
-	std::stringstream	target(uri);
-	std::string			token;
-	while (getline(target, token, '/'))
-	{
-		if (token == "..")
-			traverse--;
-		else
-			traverse++;
-	}
-	if (traverse < 0)
-		return (false);
-	return (true);
 }
 
 bool	allDigit(std::string str)
@@ -180,9 +152,7 @@ std::string		generateRandomString( void )
 
 	std::string random;
 	for (int i = 0; i < 10; i++)
-	{
 		random += alphaNum[rand() % 61];
-	}
 	return (random);
 }
 
@@ -238,26 +208,36 @@ std::string buildChunk(const char* data, size_t size)
 	return (result);
 }
 
-// std::string	buildChunk(const char *data, size_t size) // error
-// {
-// 	return (toHex(size) + "\r\n" + std::string(data, size) + "\r\n");
-// }
-
-/////////////////////////////////////////////////////
-void printMap(std::map<std::string, std::string>& map)
+std::string	normalizeURI(const std::string& path)
 {
-	std::cout << "************************************" << std::endl;
-	std::map<std::string, std::string>::iterator it;
-	for (it = map.begin(); it != map.end(); it++)
-		std::cout << it->first << "::" << it->second << std::endl;
-	std::cout << "************************************" << std::endl;
+	std::list<std::string> tokens;
+	size_t start = 1;
+	size_t end;
+	std::string	token;
+
+	while (start <= path.size())
+	{
+		end = path.find('/', start);
+		token = path.substr(start, end - start + 1);
+
+		if (token == ".." || token == "../")
+		{
+			if (!tokens.empty())
+				tokens.pop_back();
+		}
+		else if (!(token == "/" || token == "." || token == "./"))
+			tokens.push_back(token);
+
+		if (end == std::string::npos)
+			break;
+
+		start = end + 1;
+	}
+
+	std::string result = "/";
+	result.reserve(path.size());
+	for (std::list<std::string>::iterator it = tokens.begin(); it != tokens.end(); it++)
+		result.append(*it);
+	return (result);
 }
-// #include <arpa/inet.h>
-// int main() {
-// 	unsigned int my = parseIPv4("192.168.1.1");
-// 	printf("mine = %d\n", my);
-// 	printf("mine = %d\n", htonl(my));
-// 	unsigned int ip = 0;
-// 	inet_pton(AF_INET, "192.168.1.1", &ip);
-// 	printf("ip = %d\n", ip);
-// }
+

@@ -3,30 +3,22 @@
 /*                                                        :::      ::::::::   */
 /*   Request.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: nazouz <nazouz@student.42.fr>              +#+  +:+       +#+        */
+/*   By: mmaila <mmaila@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/05 17:46:13 by nazouz            #+#    #+#             */
-/*   Updated: 2025/03/01 18:41:03 by nazouz           ###   ########.fr       */
+/*   Updated: 2025/03/08 19:32:43 by mmaila           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef REQUEST_HPP
 #define REQUEST_HPP
 
-# include <iostream>
-# include <iomanip>
 # include <sstream>
 # include <string.h>
 # include <map>
 # include <vector>
-# include <algorithm>
-// # include <cstdlib>
-
-# include <fcntl.h>
-# include <sys/socket.h>
-# include <unistd.h>
 # include "../../Utils/Helpers.hpp"
-# include "../../_Config/Config.hpp"
+# include "../../Config/Config.hpp"
 
 # define RECV_BUFFER_SIZE 16384
 
@@ -54,8 +46,10 @@ typedef struct								RequestData {
 	bool									isDir;
 	bool									isRange;
 	bool									keepAlive;
+	bool									isEncoded;
+	bool									isMultipart;
 	
-	int										StatusCode;
+	int										statusCode;
 	
 	/*					REQUEST LINE				*/
 	std::string								Method;
@@ -66,9 +60,12 @@ typedef struct								RequestData {
 	std::string								queryString;
 	std::string								pathInfo;
 	std::string								scriptName;
+	std::string								fileName;
+	std::string								pathTranslated;
 	std::string								cgiIntrepreter;
-	// std::fstream							CGITempFilestream;
-	std::string								CGITempFilename; // i.e /path/to/tempfile
+	std::string								serverHost;
+	std::string								serverPort;
+	std::string								tmpFileName;
 	
 	/*					  RESPONSE   				*/
 	std::string								fullPath;
@@ -80,9 +77,9 @@ typedef struct								RequestData {
 	std::string								matchingLocation;
 
 	std::map<std::string, std::string>		Headers;
-	Directives								*_Config; // ptr
+	Directives								*config;
 	
-	RequestData() : isCGI(false), isDir(false), isRange(false), keepAlive(true), StatusCode(200), contentLength(0) {}
+	RequestData() : isCGI(false), isDir(false), isRange(false), keepAlive(true), isEncoded(false), isMultipart(false), statusCode(200), contentLength(0) {}
 }											RequestData;
 
 typedef	struct								RequestRaws {
@@ -105,79 +102,67 @@ class Request {
 	private:
 		/*			 PARSING BUFFRER			*/
 		std::string						buffer;
-		int								bufferSize;
-
-		// std::vector<int>				files;
 		std::ofstream					fileUploader;
 
 		/*			PARSING STRUCTURES			*/
-		RequestData						_RequestData;
-		RequestRaws						_RequestRaws;
+		RequestData						requestData;
+		RequestRaws						requestRaws;
 
 		std::vector<ServerConfig>&		vServers;
 
-		/*			   PARSING FLAGS			*/
-		bool							isEncoded;
-		bool							isMultipart;
-
 		/*				STATE FLAGS				*/
-		bool							headersFinished;
-		bool							bodyFinished;
-		e_parsingState					RequestState;
+		bool							headersParsed;
+		bool							bodyStored;
 	
 	public:
 		Request(std::vector<ServerConfig>& vServers);
-		~Request();
 		Request(const Request& rhs);
 		Request&	operator=(const Request& rhs);
-
-		int							feedRequest(char *recvBuffer, int recvBufferSize);
-		// bool						printParsedRequest();
+		~Request();
 
 		bool						bufferContainChunk();
-		std::string					extractHeadersFromBuffer();
-		// void						feedRequest(char *recvBuffer, int bufferSize);
 
-		int							parseControlCenter(char *recvBuffer, int recvBufferSize);
-		void						parseRequestLineAndHeaders();
+		int							process(char *recvBuffer, int recvBufferSize);
+	
+		void						decodeURI();
+		void						validateMethod();
+		void						validateURI();
+		void						validateHTTPVersion();
+		void						validateHeaders();
 		void						parseRequestLine();
-		void						parseRequestHeaders();
-		void						parseRequestBody();
-		void						decodeChunkedBody();
-		void						processRegularRequestRawBody();
-		void						processCGIRequestRawBody();
-		void						processMultipartFormData();
+		void						parseHeaders();
+
+
+		void						unchunk();
+		void						parseLengthBody();
+		void						processREGBody();
+		void						processCGIBody();
+		void						processBody();
+	
+		void						processMultipart();
 		void						processMultipartHeaders();
 		void						processMultipartData();
 		void						processBinaryBody();
-		void						parseLengthBody();
-		void						storeBody( void );
-		void						uploadBody( void );
 		
-		void						validateRequestHeaders();
-
-		// void						putRequestBodyInFile();
 
 		std::string					getBuffer() const { return buffer; };
 		void						setBuffer(const std::string& newValue) { this->buffer = newValue; };
-		void						setFullPath(const std::string& path) { _RequestData.fullPath = path; }
-		RequestData					*getRequestData() { return &_RequestData; };
+		void						setFullPath(const std::string& path) { requestData.fullPath = path; }
+		RequestData					*getRequestData() { return &requestData; };
 
 		bool						headerExists(const std::string& key);
 		bool						isCriticalHeader(const std::string& key);
-		void						decodeURI();
-		void						isValidMethod();
-		void						isValidURI();
-		void						isValidHTTPVersion();
+
+		void						openTmpFile();
 		
 		void						setMatchingConfig();
 		ServerConfig&				getMatchingServer();
 };
 
-void			resolveURI(RequestData& _RequestData);
-void			resolveAbsPath(RequestData& _RequestData);
+void			resolveURI(RequestData& requestData);
+void			resolveAbsPath(RequestData& requestData);
 
-bool			stringIsDigit(const std::string& str);
+bool			stringisdigit(const std::string& str);
 std::string		stringtrim(const std::string& str, const std::string& set);
 std::string		stringtolower(std::string str);
 bool			isHexa(const std::string& num);

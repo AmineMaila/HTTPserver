@@ -4,8 +4,6 @@
 # include <sys/epoll.h>
 # include <sys/socket.h>
 # include <fcntl.h>
-# include <unistd.h>
-# include <iostream>
 
 class Webserv;
 
