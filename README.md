@@ -220,6 +220,6 @@ This server is designed for high performance through:
 
 This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details
 
-## Contributing
+## Collaborator
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+[nazouz](https://github.com/xezzuz)
