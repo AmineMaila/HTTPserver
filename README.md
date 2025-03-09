@@ -87,7 +87,7 @@ Example:
 
 The server uses a custom configuration format with sections for server and location blocks. Below is an example of a basic configuration file:
 
-```
+```ini
 [SERVER]
   host = 0.0.0.0
   port = 8080
