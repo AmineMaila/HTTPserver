@@ -116,7 +116,7 @@ bool	Config::fillServerBlockDirectives(std::string& key, std::string& value, std
 	sharedFunctions.push_back(std::make_pair("client_max_body_size", &Config::isValidClientMaxBodySize));
 	sharedFunctions.push_back(std::make_pair("root", &Config::isValidRoot));
 	sharedFunctions.push_back(std::make_pair("index", &Config::isValidIndex));
-	sharedFunctions.push_back(std::make_pair("auto_index", &Config::isValidAutoIndex));
+	sharedFunctions.push_back(std::make_pair("autoindex", &Config::isValidAutoIndex));
 	sharedFunctions.push_back(std::make_pair("redirect", &Config::isValidRedirect));
 	sharedFunctions.push_back(std::make_pair("upload_store", &Config::isValidUploadStore));
 	sharedFunctions.push_back(std::make_pair("methods", &Config::isValidMethods));
@@ -157,7 +157,7 @@ bool	Config::fillLocationBlockDirectives(std::string& key, std::string& value, s
 	sharedFunctions.push_back(std::make_pair("client_max_body_size", &Config::isValidClientMaxBodySize));
 	sharedFunctions.push_back(std::make_pair("root", &Config::isValidRoot));
 	sharedFunctions.push_back(std::make_pair("index", &Config::isValidIndex));
-	sharedFunctions.push_back(std::make_pair("auto_index", &Config::isValidAutoIndex));
+	sharedFunctions.push_back(std::make_pair("autoindex", &Config::isValidAutoIndex));
 	sharedFunctions.push_back(std::make_pair("redirect", &Config::isValidRedirect));
 	sharedFunctions.push_back(std::make_pair("upload_store", &Config::isValidUploadStore));
 	sharedFunctions.push_back(std::make_pair("methods", &Config::isValidMethods));
