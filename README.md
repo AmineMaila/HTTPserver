@@ -54,8 +54,8 @@ The server can be built using the provided Makefile.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/http-server.git
-cd http-server
+git clone https://github.com/AmineMaila/HTTPserver.git
+cd HTTPserver
 
 # Build the project
 make
