@@ -58,7 +58,7 @@ OBJDIR			=		./objects
 OBJS			= 		$(SRCS:%.cpp=$(OBJDIR)/%.o)
 
 all : $(NAME)
-	@mkdir -p /var/www/webser/
+	@mkdir -p ~/webserv/
 
 $(OBJDIR)/%.o : %.cpp $(INCLUDE)
 	@mkdir -p $(dir $@)
